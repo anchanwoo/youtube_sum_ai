@@ -21,12 +21,12 @@ st.markdown("""
 /* 전체 배경 - 삿포로 거리 풍경 */
 .stApp {
     background: 
-        /* 반투명 오버레이 */
+        /* 반투명 오버레이 - 더 투명하게 */
         linear-gradient(
             135deg,
-            rgba(240, 248, 255, 0.92) 0%,
-            rgba(255, 255, 255, 0.88) 50%,
-            rgba(240, 248, 255, 0.92) 100%
+            rgba(240, 248, 255, 0.65) 0%,
+            rgba(255, 255, 255, 0.45) 50%,
+            rgba(240, 248, 255, 0.65) 100%
         ),
         /* 삿포로 거리 이미지 - 사용자 제공 이미지 */
         url('./assets/sapporo_street.jpg'),
@@ -81,9 +81,9 @@ st.markdown("""
     display: none;
 }
 
-/* SUM-Q 로고 - Popeyes 스타일 */
+/* SUM-Q 로고 - 일본 도시 스타일 */
 .sumq-logo {
-    background: linear-gradient(145deg, #E53E3E 0%, #C53030 50%, #9B2C2C 100%);
+    background: linear-gradient(145deg, #2D3748 0%, #4A5568 50%, #1A202C 100%);
     color: #FFFFFF;
     font-family: 'Fredoka One', cursive;
     font-size: 4rem;
@@ -93,12 +93,13 @@ st.markdown("""
     margin: 3rem auto 2rem auto;
     width: fit-content;
     box-shadow: 
-        0 8px 25px rgba(229, 62, 62, 0.4),
+        0 8px 25px rgba(45, 55, 72, 0.4),
         inset 0 4px 8px rgba(255, 255, 255, 0.3),
         inset 0 -4px 8px rgba(0, 0, 0, 0.2);
     transform: perspective(500px) rotateX(10deg);
     position: relative;
     letter-spacing: 2px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .sumq-logo::before {
@@ -108,7 +109,7 @@ st.markdown("""
     left: -5px;
     right: -5px;
     bottom: -5px;
-    background: linear-gradient(145deg, #F56565, #E53E3E);
+    background: linear-gradient(145deg, #4A5568, #2D3748);
     border-radius: 55px;
     z-index: -1;
     opacity: 0.3;
@@ -117,6 +118,10 @@ st.markdown("""
 .sumq-logo:hover {
     transform: perspective(500px) rotateX(10deg) translateY(-5px);
     transition: all 0.3s ease;
+    box-shadow: 
+        0 12px 35px rgba(45, 55, 72, 0.5),
+        inset 0 4px 8px rgba(255, 255, 255, 0.4),
+        inset 0 -4px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* URL 입력 컨테이너 */
@@ -131,25 +136,27 @@ st.markdown("""
     border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
-/* 입력 필드 - 깔끔한 스타일 */
+/* 입력 필드 - 일본 도시 스타일 */
 .stTextInput > div > div > input {
-    background: rgba(255, 255, 255, 0.9);
-    border: 3px solid #E53E3E;
+    background: rgba(255, 255, 255, 0.92);
+    border: 3px solid #4299E1;
     border-radius: 20px;
     color: #2D3748;
     font-family: 'Noto Sans JP', sans-serif;
     font-size: 18px;
     padding: 1rem 1.5rem;
-    box-shadow: 0 5px 15px rgba(229, 62, 62, 0.2);
+    box-shadow: 0 5px 15px rgba(66, 153, 225, 0.2);
     transition: all 0.3s ease;
     text-align: center;
+    backdrop-filter: blur(5px);
 }
 
 .stTextInput > div > div > input:focus {
-    border-color: #C53030;
-    box-shadow: 0 0 0 4px rgba(229, 62, 62, 0.2);
+    border-color: #3182CE;
+    box-shadow: 0 0 0 4px rgba(66, 153, 225, 0.2);
     outline: none;
     transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.95);
 }
 
 .stTextInput > div > div > input::placeholder {
@@ -157,9 +164,9 @@ st.markdown("""
     font-weight: 300;
 }
 
-/* 메인 버튼 - SUM-Q 스타일 */
+/* 메인 버튼 - 일본 도시 스타일 */
 .stButton > button[kind="primary"] {
-    background: linear-gradient(145deg, #E53E3E 0%, #C53030 100%);
+    background: linear-gradient(145deg, #4299E1 0%, #3182CE 100%);
     color: #FFFFFF;
     border: none;
     border-radius: 20px;
@@ -170,22 +177,24 @@ st.markdown("""
     transition: all 0.3s ease;
     text-transform: none;
     letter-spacing: 1px;
-    box-shadow: 0 8px 20px rgba(229, 62, 62, 0.3);
+    box-shadow: 0 8px 20px rgba(66, 153, 225, 0.3);
     width: 100%;
     margin-top: 1rem;
+    border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .stButton > button[kind="primary"]:hover {
-    background: linear-gradient(145deg, #C53030 0%, #9B2C2C 100%);
-    box-shadow: 0 12px 30px rgba(229, 62, 62, 0.4);
+    background: linear-gradient(145deg, #3182CE 0%, #2B6CB0 100%);
+    box-shadow: 0 12px 30px rgba(66, 153, 225, 0.4);
     transform: translateY(-3px);
+    border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* 예시 버튼들 - 간소화 */
+/* 예시 버튼들 - 일본 도시 스타일 */
 .stButton > button {
-    background: rgba(255, 255, 255, 0.8);
-    color: #4A5568;
-    border: 2px solid #E2E8F0;
+    background: rgba(255, 255, 255, 0.85);
+    color: #2D3748;
+    border: 2px solid rgba(45, 55, 72, 0.2);
     border-radius: 15px;
     font-family: 'Noto Sans JP', sans-serif;
     font-weight: 500;
@@ -193,13 +202,16 @@ st.markdown("""
     padding: 0.75rem 1rem;
     transition: all 0.3s ease;
     text-transform: none;
+    backdrop-filter: blur(5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .stButton > button:hover {
-    background: rgba(229, 62, 62, 0.1);
-    border-color: #E53E3E;
-    color: #E53E3E;
+    background: rgba(66, 153, 225, 0.15);
+    border-color: #4299E1;
+    color: #3182CE;
     transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(66, 153, 225, 0.2);
 }
 
 /* 예시 버튼 컨테이너 */
