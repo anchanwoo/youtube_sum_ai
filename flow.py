@@ -10,6 +10,7 @@ from utils.qa_generator import generate_qa_pairs
 from utils.kid_friendly_converter import convert_to_kid_friendly
 from utils.content_validator import validate_transcript_quality, ensure_topic_diversity
 from utils.final_reviewer import review_and_correct_summary, generate_review_summary
+from utils.notion_client import save_to_notion
 
 # Set up logging
 logging.basicConfig(
@@ -281,6 +282,62 @@ class ReviewAndCorrect(Node):
         
         return "default"
 
+class SaveToNotion(Node):
+    """Save the processed content to Notion database"""
+    def prep(self, shared):
+        """Get video info and final topics from shared"""
+        video_info = shared.get("video_info", {})
+        final_topics = shared.get("final_topics", [])
+        
+        return {
+            "video_info": video_info,
+            "final_topics": final_topics
+        }
+    
+    def exec(self, data):
+        """Save to Notion database"""
+        video_info = data["video_info"]
+        final_topics = data["final_topics"]
+        
+        # 노션 API 토큰과 데이터베이스 ID가 있는지 확인
+        if not os.getenv('NOTION_TOKEN') or not os.getenv('NOTION_DATABASE_ID'):
+            logger.info("노션 설정이 없어 건너뛰기")
+            return {"success": False, "error": "노션 설정이 없습니다"}
+        
+        logger.info("노션에 저장 중...")
+        
+        # 노션용 데이터 변환
+        topics_list = [topic["title"] for topic in final_topics]
+        qa_pairs = []
+        kid_friendly_pairs = []
+        
+        for topic in final_topics:
+            for qa in topic["qa_pairs"]:
+                qa_pairs.append({
+                    "question": qa.get("original_question", qa.get("kid_friendly_question", "")),
+                    "answer": qa.get("original_answer", qa.get("kid_friendly_answer", ""))
+                })
+                kid_friendly_pairs.append({
+                    "question": qa.get("kid_friendly_question", ""),
+                    "answer": qa.get("kid_friendly_answer", "")
+                })
+        
+        # 노션에 저장
+        result = save_to_notion(video_info, topics_list, qa_pairs, kid_friendly_pairs)
+        
+        return result
+    
+    def post(self, shared, prep_res, exec_res):
+        """Store notion result in shared"""
+        shared["notion_result"] = exec_res
+        
+        if exec_res.get("success"):
+            logger.info(f"✅ 노션 저장 완료: {exec_res.get('page_url', '')}")
+        else:
+            logger.warning(f"⚠️ 노션 저장 실패: {exec_res.get('error', '알 수 없는 오류')}")
+        
+        return "default"
+
 class GenerateHTML(Node):
     """Generate HTML output from processed content"""
     def prep(self, shared):
@@ -353,16 +410,17 @@ def create_youtube_processor_flow():
     extract_topics = ExtractTopics(max_retries=3, wait=2)
     generate_qa = GenerateQA(max_retries=3, wait=2)
     convert_kid_friendly = ConvertToKidFriendly(max_retries=3, wait=2)
-    review_and_correct = ReviewAndCorrect(max_retries=2, wait=2)  # 새로운 검토 단계!
+    review_and_correct = ReviewAndCorrect(max_retries=2, wait=2)  # AI 검토 단계!
+    save_to_notion = SaveToNotion(max_retries=2, wait=1)  # 노션 저장 단계!
     generate_html = GenerateHTML(max_retries=2, wait=1)
     
-    # Connect nodes in sequence with AI Review step
-    process_url >> extract_topics >> generate_qa >> convert_kid_friendly >> review_and_correct >> generate_html
+    # Connect nodes in sequence with AI Review and Notion Save steps
+    process_url >> extract_topics >> generate_qa >> convert_kid_friendly >> review_and_correct >> save_to_notion >> generate_html
     
     # Create flow
     flow = Flow(start=process_url)
     
-    logger.info("YouTube processor flow created successfully with AI Review")
+    logger.info("YouTube processor flow created successfully with AI Review & Notion Save")
     return flow
 
 if __name__ == "__main__":

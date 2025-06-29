@@ -290,6 +290,19 @@ if process_button and youtube_url:
         
         # 결과 표시
         if "html_output" in shared:
+            # 노션 저장 결과 먼저 표시
+            if "notion_result" in shared:
+                notion_result = shared["notion_result"]
+                if notion_result.get("success"):
+                    st.success(f"🎉 노션에 저장 완료!")
+                    st.markdown(f"📝 [노션 페이지 보기]({notion_result.get('page_url')})")
+                else:
+                    # 노션 설정이 없으면 안내 메시지
+                    if "노션 설정이 없습니다" in notion_result.get("error", ""):
+                        st.info("💡 **노션 연결하고 싶으신가요?**  \n.env 파일에 `NOTION_TOKEN`과 `NOTION_DATABASE_ID`를 추가하면 자동으로 노션에도 저장됩니다!")
+                    else:
+                        st.warning(f"⚠️ 노션 저장 실패: {notion_result.get('error', '알 수 없는 오류')}")
+            
             # HTML 요약 표시
             st.markdown(shared["html_output"], unsafe_allow_html=True)
             

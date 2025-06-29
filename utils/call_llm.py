@@ -9,7 +9,7 @@ try:
 except ImportError:
     print("⚠️ python-dotenv가 설치되지 않았습니다. 환경변수를 직접 설정해주세요.")
 
-def call_llm(prompt: str, model: str = "gpt-4") -> str:
+def call_llm(prompt: str, model: str = "gpt-4o-mini") -> str:
     """
     OpenAI API를 사용하여 LLM 호출
     

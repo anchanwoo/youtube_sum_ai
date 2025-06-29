@@ -24,22 +24,57 @@ Try running the code in your browser using the [demo notebook](https://colab.res
 
 ## How to Run
 
-1. Set up LLM in [`utils/call_llm.py`](./utils/call_llm.py) by providing credentials.
-   
-   You can refer to [LLM Wrappers](https://the-pocket.github.io/PocketFlow/utility_function/llm.html) for example implementations.
-   
-   You can verify that it is correctly set up by running:
-   ```bash
-   python utils/call_llm.py
-   ```
+### 1. Set up API Keys
+Create a `.env` file in the project root:
 
-4. Install the dependencies and run the program:
+```bash
+# OpenAI API Key (Required)
+OPENAI_API_KEY=your_openai_api_key_here
+
+# Notion Integration (Optional)
+NOTION_TOKEN=secret_your_notion_token_here
+NOTION_DATABASE_ID=your_database_id_here
+```
+
+### 2. Notion Setup (Optional)
+To automatically save summaries to Notion:
+
+1. **Create Notion Integration**
+   - Go to [notion.so/my-integrations](https://www.notion.so/my-integrations)
+   - Click "New integration"
+   - Copy the "Internal Integration Token"
+
+2. **Create Database**
+   - Create a new Notion page
+   - Add a database with these properties:
+     - `제목` (Title)
+     - `YouTube URL` (URL)
+     - `생성일` (Date)
+     - `주제 개수` (Number)
+     - `QA 개수` (Number)
+
+3. **Connect Integration**
+   - In your database, click "..." → "Connections" → Add your integration
+   - Copy the database ID from the URL
+
+### 3. Run the App
+
+**Command Line:**
 ```bash
 pip install -r requirements.txt
 python main.py --url "https://www.youtube.com/watch?v=example"
 ```
 
-3. When it's done, open output.html (created in the project folder) to see the results.
+**Web Interface:**
+```bash
+pip install -r requirements.txt
+streamlit run streamlit_app.py
+```
+
+### 4. Results
+- **HTML file:** `output.html` (created in project folder)
+- **Notion page:** Automatically created if configured
+- **Downloads:** Available through web interface
 
 ## I built this in just an hour, and you can, too.
 
