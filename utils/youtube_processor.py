@@ -59,22 +59,47 @@ def get_transcript_multi_language(video_id):
             except:
                 continue
         
-        # If none of the priority languages are found, raise error
-        raise Exception("No transcript available in Korean, English, or Japanese")
-        
-    except Exception as e:
-        # List available transcripts for debugging
+        # If none of the priority languages are found, try auto-generated captions
         try:
             transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
             available_languages = []
-            for transcript_info in transcript_list:
-                available_languages.append(f"{transcript_info.language_code} ({transcript_info.language})")
+            auto_generated_found = None
             
-            error_msg = f"No transcript found in supported languages (Korean, English, Japanese). Available languages: {', '.join(available_languages)}"
-        except:
-            error_msg = f"Failed to get transcript: {str(e)}"
+            # Check available transcripts and look for auto-generated ones
+            for transcript_info in transcript_list:
+                lang_info = f"{transcript_info.language_code} ({transcript_info.language})"
+                if transcript_info.is_generated:
+                    lang_info += " [자동생성]"
+                    if transcript_info.language_code in language_priority and not auto_generated_found:
+                        auto_generated_found = transcript_info.language_code
+                available_languages.append(lang_info)
+            
+            # Try auto-generated captions if available
+            if auto_generated_found:
+                transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=[auto_generated_found])
+                transcript = " ".join([entry["text"] for entry in transcript_list])
+                language_name = {'ko': 'Korean', 'en': 'English', 'ja': 'Japanese'}[auto_generated_found]
+                print(f"✅ Found auto-generated {language_name} ({auto_generated_found}) transcript")
+                return transcript, auto_generated_found
+            
+            # If still no luck, provide helpful error message
+            suggestion = "🔍 **해결 방법:**\n"
+            suggestion += "1. **다른 비디오 시도**: 자막이 있는 다른 YouTube 비디오를 사용해보세요\n"
+            suggestion += "2. **인기 채널 추천**: 교육 채널이나 뉴스 채널은 보통 자막이 제공됩니다\n"
+            suggestion += "3. **최신 비디오**: 최근 업로드된 비디오일수록 자막이 있을 확률이 높습니다\n\n"
+            
+            if available_languages:
+                error_msg = f"😅 이 비디오는 한국어, 영어, 일본어 자막이 없어요!\n\n📋 **사용 가능한 언어**: {', '.join(available_languages)}\n\n{suggestion}"
+            else:
+                error_msg = f"😅 이 비디오에는 자막이 전혀 없어요!\n\n{suggestion}"
+            
+        except Exception as list_error:
+            error_msg = f"😅 비디오 자막을 가져올 수 없어요!\n\n🔍 **해결 방법:**\n1. 다른 YouTube 비디오를 시도해보세요\n2. 자막이 있는 교육용 비디오를 추천합니다\n3. 최신 업로드 비디오를 선택해보세요\n\n📝 **기술적 오류**: {str(list_error)}"
         
         raise Exception(error_msg)
+        
+    except Exception as e:
+        raise Exception(f"😅 비디오 자막을 가져올 수 없어요!\n\n🔍 **해결 방법:**\n1. 다른 YouTube 비디오를 시도해보세요\n2. 자막이 있는 교육용 비디오를 추천합니다\n3. 최신 업로드 비디오를 선택해보세요\n\n📝 **기술적 오류**: {str(e)}")
 
 if __name__ == "__main__":
     # Test with Korean video

@@ -236,6 +236,10 @@ if "api_key" not in st.session_state:
     st.session_state.api_key = ""
 if "selected_url" not in st.session_state:
     st.session_state.selected_url = ""
+if "processing" not in st.session_state:
+    st.session_state.processing = False
+if "should_stop" not in st.session_state:
+    st.session_state.should_stop = False
 
 # API 키 자동 로드 (환경 변수에서)
 env_api_key = os.getenv("OPENAI_API_KEY", "")
@@ -260,8 +264,21 @@ youtube_url = st.text_input(
     label_visibility="collapsed"
 )
 
-# 요약 버튼
-process_button = st.button("✨ 요약 시작하기", type="primary", use_container_width=True)
+# 버튼 영역
+if not st.session_state.processing:
+    # 요약 시작 버튼
+    process_button = st.button("✨ 요약 시작하기", type="primary", use_container_width=True)
+    stop_button = False
+else:
+    # 중단 버튼
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.info("🎬 요약 생성 중... 잠시만 기다려주세요!")
+    with col2:
+        stop_button = st.button("🛑 중단", use_container_width=True)
+        if stop_button:
+            st.session_state.should_stop = True
+    process_button = False
 
 # URL이 변경되면 session state 업데이트
 if youtube_url != st.session_state.get("selected_url", ""):
@@ -270,19 +287,93 @@ if youtube_url != st.session_state.get("selected_url", ""):
 # 요약 처리
 if process_button and youtube_url:
     try:
+        # 처리 시작
+        st.session_state.processing = True
+        st.session_state.should_stop = False
+        st.rerun()
+        
+    except InterruptedError:
+        st.session_state.processing = False
+        st.session_state.should_stop = False
+        st.warning("🛑 사용자가 처리를 중단했습니다.")
+        
+    except Exception as e:
+        st.session_state.processing = False
+        # 친화적인 에러 메시지 표시
+        if "자막" in str(e) or "transcript" in str(e).lower():
+            st.error(str(e))
+            # 추천 비디오 제안
+            st.info("🎯 **자막이 있는 추천 비디오들:**")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button("⚽ 축구 영상", use_container_width=True):
+                    st.session_state.selected_url = "https://youtu.be/FI8ozR1NLbA?si=EBTyq171a-vdTQB5"
+                    st.rerun()
+            with col2:
+                if st.button("🎵 음악 영상", use_container_width=True):
+                    st.session_state.selected_url = "https://youtu.be/dQw4w9WgXcQ"
+                    st.rerun()
+            with col3:
+                if st.button("📚 교육 영상", use_container_width=True):
+                    st.session_state.selected_url = "https://youtu.be/kJQP7kiw5Fk"
+                    st.rerun()
+        else:
+            st.error(f"❌ 오류: {str(e)}")
+
+elif process_button and not youtube_url:
+    st.warning("⚠️ YouTube URL을 입력해주세요!")
+
+# 실제 처리 로직 (처리 중일 때만 실행)
+if st.session_state.processing:
+    try:
         progress_bar = st.progress(0)
-        status_text = st.empty()
+        status_container = st.container()
         
-        status_text.text("🎬 요약 생성 중...")
-        progress_bar.progress(50)
+        with status_container:
+            status_text = st.empty()
+            
+        status_text.text("🎬 비디오 정보 가져오는 중...")
+        progress_bar.progress(10)
         
+        # 중단 확인
+        if st.session_state.should_stop:
+            st.warning("🛑 사용자가 중단했습니다.")
+            st.session_state.processing = False
+            st.session_state.should_stop = False
+            st.rerun()
+            
         # Flow 실행
         flow = create_youtube_processor_flow()
-        shared = {"url": youtube_url}
+        shared = {"url": youtube_url, "stop_flag": st.session_state}
+        
+        status_text.text("📝 주제 추출 중...")
+        progress_bar.progress(30)
+        
+        # 중단 확인
+        if st.session_state.should_stop:
+            st.warning("🛑 사용자가 중단했습니다.")
+            st.session_state.processing = False
+            st.session_state.should_stop = False
+            st.rerun()
+        
+        status_text.text("❓ Q&A 생성 중...")
+        progress_bar.progress(60)
+        
+        # Flow 실행
         flow.run(shared)
+        
+        # 중단 확인
+        if st.session_state.should_stop:
+            st.warning("🛑 사용자가 중단했습니다.")
+            st.session_state.processing = False
+            st.session_state.should_stop = False
+            st.rerun()
         
         progress_bar.progress(100)
         status_text.text("✅ 완료!")
+        
+        # 처리 완료
+        st.session_state.processing = False
         
         time.sleep(0.5)
         progress_bar.empty()
@@ -330,10 +421,32 @@ if process_button and youtube_url:
         else:
             st.error("❌ 요약 생성 실패")
             
+    except InterruptedError:
+        st.session_state.processing = False
+        st.session_state.should_stop = False
+        st.warning("🛑 사용자가 처리를 중단했습니다.")
+        
     except Exception as e:
-        st.error(f"❌ 오류: {str(e)}")
-
-elif process_button and not youtube_url:
-    st.warning("⚠️ YouTube URL을 입력해주세요!")
+        st.session_state.processing = False
+        # 친화적인 에러 메시지 표시
+        if "자막" in str(e) or "transcript" in str(e).lower():
+            st.error(str(e))
+            # 추천 비디오 제안
+            st.info("🎯 **자막이 있는 추천 비디오들:**")
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                if st.button("⚽ 축구 영상", key="rec1", use_container_width=True):
+                    st.session_state.selected_url = "https://youtu.be/FI8ozR1NLbA?si=EBTyq171a-vdTQB5"
+                    st.rerun()
+            with col2:
+                if st.button("🎵 음악 영상", key="rec2", use_container_width=True):
+                    st.session_state.selected_url = "https://youtu.be/dQw4w9WgXcQ"
+                    st.rerun()
+            with col3:
+                if st.button("📚 교육 영상", key="rec3", use_container_width=True):
+                    st.session_state.selected_url = "https://youtu.be/kJQP7kiw5Fk"
+                    st.rerun()
+        else:
+            st.error(f"❌ 오류: {str(e)}")
 
  

@@ -23,6 +23,10 @@ class ProcessYouTubeURL(Node):
     """Process YouTube URL to extract video information"""
     def prep(self, shared):
         """Get URL from shared"""
+        # 중단 확인
+        stop_flag = shared.get("stop_flag", {})
+        if hasattr(stop_flag, 'should_stop') and stop_flag.should_stop:
+            raise InterruptedError("처리가 중단되었습니다.")
         return shared.get("url", "")
     
     def exec(self, url):
@@ -58,6 +62,10 @@ class ExtractTopics(Node):
     """Extract interesting topics from the video transcript"""
     def prep(self, shared):
         """Get transcript from video_info"""
+        # 중단 확인
+        stop_flag = shared.get("stop_flag", {})
+        if hasattr(stop_flag, 'should_stop') and stop_flag.should_stop:
+            raise InterruptedError("처리가 중단되었습니다.")
         video_info = shared.get("video_info", {})
         transcript = video_info.get("transcript", "")
         return transcript
@@ -96,6 +104,10 @@ class GenerateQA(BatchNode):
     """Generate Q&A pairs for each topic"""
     def prep(self, shared):
         """Return list of topics for batch processing"""
+        # 중단 확인
+        stop_flag = shared.get("stop_flag", {})
+        if hasattr(stop_flag, 'should_stop') and stop_flag.should_stop:
+            raise InterruptedError("처리가 중단되었습니다.")
         topics = shared.get("topics", [])
         return topics
     
@@ -134,6 +146,10 @@ class ConvertToKidFriendly(BatchNode):
     """Convert content to kid-friendly explanations"""
     def prep(self, shared):
         """Return list of topics with Q&A pairs for batch processing"""
+        # 중단 확인
+        stop_flag = shared.get("stop_flag", {})
+        if hasattr(stop_flag, 'should_stop') and stop_flag.should_stop:
+            raise InterruptedError("처리가 중단되었습니다.")
         topics_with_qa = shared.get("topics_with_qa", [])
         
         # Flatten Q&A pairs for individual processing
