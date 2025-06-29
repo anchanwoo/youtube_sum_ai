@@ -16,9 +16,11 @@ st.set_page_config(
 # 사이드바에 설정
 st.sidebar.title("⚙️ 설정")
 
-# Session State 초기화
+# Session State 초기화 (맨 위로 이동)
 if "api_key" not in st.session_state:
     st.session_state.api_key = ""
+if "selected_url" not in st.session_state:
+    st.session_state.selected_url = ""
 
 # API 키 자동 로드 (환경 변수에서)
 env_api_key = os.getenv("OPENAI_API_KEY", "")
@@ -117,7 +119,7 @@ col1, col2 = st.columns([3, 1])
 with col1:
     youtube_url = st.text_input(
         "YouTube URL",
-        value=st.session_state.selected_url,
+        value=st.session_state.get("selected_url", ""),
         placeholder="https://youtu.be/... 또는 https://www.youtube.com/watch?v=...",
         help="YouTube 비디오 URL을 입력하세요",
         label_visibility="collapsed"
@@ -126,10 +128,6 @@ with col1:
 with col2:
     st.markdown("<br>", unsafe_allow_html=True)  # 높이 맞추기
     process_button = st.button("🚀 요약하기", type="primary", use_container_width=True)
-
-# Session state for URL
-if "selected_url" not in st.session_state:
-    st.session_state.selected_url = ""
 
 # 예시 URLs
 st.markdown("**📋 예시 URLs (클릭해서 테스트):**")
@@ -147,7 +145,7 @@ for i, (title, url) in enumerate(example_urls):
             st.rerun()
 
 # URL이 변경되면 session state 업데이트
-if youtube_url != st.session_state.selected_url:
+if youtube_url != st.session_state.get("selected_url", ""):
     st.session_state.selected_url = youtube_url
 
 # 요약 처리
