@@ -7,16 +7,243 @@ import json
 
 # 페이지 설정
 st.set_page_config(
-    page_title="YouTube 5살 아이용 요약기",
-    page_icon="📺",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="SUM-Q",
+    page_icon="🎬",
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
 
-# 사이드바에 설정
-st.sidebar.title("⚙️ 설정")
+# SUM-Q 미니멀 스타일 CSS (삿포로 테마)
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One:wght@400&family=Noto+Sans+JP:wght@300;400;700;900&display=swap');
 
-# Session State 초기화 (맨 위로 이동)
+/* 전체 배경 - 삿포로 거리 풍경 */
+.stApp {
+    background: linear-gradient(
+        135deg,
+        rgba(135, 206, 235, 0.9) 0%,
+        rgba(176, 224, 230, 0.9) 30%,
+        rgba(240, 248, 255, 0.9) 70%,
+        rgba(255, 250, 240, 0.9) 100%
+    ),
+    /* 도시 실루엣 효과 */
+    linear-gradient(
+        to bottom,
+        transparent 0%,
+        transparent 60%,
+        rgba(70, 130, 180, 0.1) 60%,
+        rgba(70, 130, 180, 0.2) 80%,
+        rgba(70, 130, 180, 0.3) 100%
+    );
+    font-family: 'Noto Sans JP', sans-serif;
+    min-height: 100vh;
+    position: relative;
+}
+
+/* 배경 장식 - 건물과 산 실루엣 */
+.stApp::before {
+    content: "";
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 200px;
+    background: 
+        /* 산 실루엣 */
+        radial-gradient(ellipse 300px 120px at 20% 100%, rgba(176, 196, 222, 0.4) 0%, transparent 70%),
+        radial-gradient(ellipse 400px 150px at 80% 100%, rgba(176, 196, 222, 0.3) 0%, transparent 70%),
+        /* 건물 실루엣 */
+        linear-gradient(to top, rgba(70, 130, 180, 0.1) 0%, transparent 50%);
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* 메인 컨테이너 - 투명하고 깔끔하게 */
+.main .block-container {
+    background: transparent;
+    border: none;
+    padding: 2rem 1rem;
+    margin: 0;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* 사이드바 숨기기 */
+.css-1d391kg {
+    display: none;
+}
+
+/* SUM-Q 로고 - Popeyes 스타일 */
+.sumq-logo {
+    background: linear-gradient(145deg, #E53E3E 0%, #C53030 50%, #9B2C2C 100%);
+    color: #FFFFFF;
+    font-family: 'Fredoka One', cursive;
+    font-size: 4rem;
+    text-align: center;
+    padding: 2rem 3rem;
+    border-radius: 50px;
+    margin: 3rem auto 2rem auto;
+    width: fit-content;
+    box-shadow: 
+        0 8px 25px rgba(229, 62, 62, 0.4),
+        inset 0 4px 8px rgba(255, 255, 255, 0.3),
+        inset 0 -4px 8px rgba(0, 0, 0, 0.2);
+    transform: perspective(500px) rotateX(10deg);
+    position: relative;
+    letter-spacing: 2px;
+}
+
+.sumq-logo::before {
+    content: "";
+    position: absolute;
+    top: -5px;
+    left: -5px;
+    right: -5px;
+    bottom: -5px;
+    background: linear-gradient(145deg, #F56565, #E53E3E);
+    border-radius: 55px;
+    z-index: -1;
+    opacity: 0.3;
+}
+
+.sumq-logo:hover {
+    transform: perspective(500px) rotateX(10deg) translateY(-5px);
+    transition: all 0.3s ease;
+}
+
+/* URL 입력 컨테이너 */
+.url-container {
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 25px;
+    padding: 2rem;
+    margin: 2rem auto;
+    max-width: 500px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+/* 입력 필드 - 깔끔한 스타일 */
+.stTextInput > div > div > input {
+    background: rgba(255, 255, 255, 0.9);
+    border: 3px solid #E53E3E;
+    border-radius: 20px;
+    color: #2D3748;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 18px;
+    padding: 1rem 1.5rem;
+    box-shadow: 0 5px 15px rgba(229, 62, 62, 0.2);
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.stTextInput > div > div > input:focus {
+    border-color: #C53030;
+    box-shadow: 0 0 0 4px rgba(229, 62, 62, 0.2);
+    outline: none;
+    transform: translateY(-2px);
+}
+
+.stTextInput > div > div > input::placeholder {
+    color: #A0AEC0;
+    font-weight: 300;
+}
+
+/* 메인 버튼 - SUM-Q 스타일 */
+.stButton > button[kind="primary"] {
+    background: linear-gradient(145deg, #E53E3E 0%, #C53030 100%);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 20px;
+    font-family: 'Fredoka One', cursive;
+    font-weight: 400;
+    font-size: 18px;
+    padding: 1rem 2.5rem;
+    transition: all 0.3s ease;
+    text-transform: none;
+    letter-spacing: 1px;
+    box-shadow: 0 8px 20px rgba(229, 62, 62, 0.3);
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.stButton > button[kind="primary"]:hover {
+    background: linear-gradient(145deg, #C53030 0%, #9B2C2C 100%);
+    box-shadow: 0 12px 30px rgba(229, 62, 62, 0.4);
+    transform: translateY(-3px);
+}
+
+/* 예시 버튼들 - 간소화 */
+.stButton > button {
+    background: rgba(255, 255, 255, 0.8);
+    color: #4A5568;
+    border: 2px solid #E2E8F0;
+    border-radius: 15px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 500;
+    font-size: 14px;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+    text-transform: none;
+}
+
+.stButton > button:hover {
+    background: rgba(229, 62, 62, 0.1);
+    border-color: #E53E3E;
+    color: #E53E3E;
+    transform: translateY(-2px);
+}
+
+/* 예시 버튼 컨테이너 */
+.example-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin: 1.5rem 0;
+    flex-wrap: wrap;
+}
+
+/* 숨김 처리 */
+.stProgress, 
+.stSuccess, 
+.stWarning, 
+.stError, 
+.stInfo {
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* 깔끔한 텍스트 */
+.stMarkdown {
+    color: #4A5568;
+    font-family: 'Noto Sans JP', sans-serif;
+}
+
+/* 스크롤바 간소화 */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #E53E3E;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #C53030;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# Session State 초기화
 if "api_key" not in st.session_state:
     st.session_state.api_key = ""
 if "selected_url" not in st.session_state:
@@ -24,118 +251,37 @@ if "selected_url" not in st.session_state:
 
 # API 키 자동 로드 (환경 변수에서)
 env_api_key = os.getenv("OPENAI_API_KEY", "")
-
-# API 키 설정
-st.sidebar.markdown("### 🔑 API 키 설정")
-
-# 환경 변수에서 API 키가 있으면 표시
 if env_api_key:
-    st.sidebar.success("✅ API 키가 환경 변수에서 자동 로드되었습니다!")
     os.environ["OPENAI_API_KEY"] = env_api_key
-    
-    # 환경 변수 키의 일부만 표시 (보안)
-    if len(env_api_key) > 16:
-        masked_key = env_api_key[:12] + "..." + env_api_key[-4:]
-    else:
-        masked_key = env_api_key[:4] + "..." + env_api_key[-2:]
-    st.sidebar.code(f"🔐 {masked_key}")
-    
-else:
-    # API 키 입력
-    api_key_input = st.sidebar.text_input(
-        "OpenAI API Key",
-        value=st.session_state.api_key,
-        type="password",
-        help="OpenAI API 키를 입력하세요. 세션 동안 자동으로 기억됩니다.",
-        placeholder="sk-proj-..."
-    )
-    
-    # API 키 상태 업데이트
-    if api_key_input:
-        st.session_state.api_key = api_key_input
-        os.environ["OPENAI_API_KEY"] = api_key_input
-        st.sidebar.success("✅ API 키가 설정되었습니다! (세션 동안 유지)")
-        
-        # 키의 일부만 표시 (보안)
-        if len(api_key_input) > 16:
-            masked_key = api_key_input[:12] + "..." + api_key_input[-4:]
-        else:
-            masked_key = api_key_input[:4] + "..." + api_key_input[-2:]
-        st.sidebar.code(f"🔐 {masked_key}")
-        
-    else:
-        st.sidebar.warning("⚠️ Mock 모드로 동작합니다")
-        st.sidebar.info("💡 실제 요약을 위해서는 OpenAI API 키가 필요합니다")
 
-# API 키 지우기 버튼
-if st.session_state.api_key or env_api_key:
-    if st.sidebar.button("🗑️ API 키 지우기"):
-        st.session_state.api_key = ""
-        if "OPENAI_API_KEY" in os.environ and not env_api_key:
-            del os.environ["OPENAI_API_KEY"]
-        st.rerun()
-
-# API 키 사용법 도움말
-with st.sidebar.expander("❓ API 키 사용법"):
-    st.markdown("""
-    ### 🔑 API 키 얻는 방법
-    1. [OpenAI 웹사이트](https://platform.openai.com) 방문
-    2. 계정 생성 또는 로그인
-    3. "API Keys" 메뉴에서 새 키 생성
-    4. 여기에 붙여넣기
-    
-    ### 💡 팁
-    - **세션 유지**: 탭을 닫지 않으면 계속 기억됩니다
-    - **환경 변수**: `.env` 파일에 저장하면 자동 로드
-    - **Mock 모드**: API 키 없이도 테스트 가능
-    
-    ### 🔒 보안
-    - API 키는 메모리에만 저장됩니다
-    - 브라우저 종료 시 자동 삭제
-    - 서버에 전송되지 않음
-    """)
-
-# 노션 연동 설정 (나중에 추가)
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 📝 노션 연동 (곧 출시)")
-notion_token = st.sidebar.text_input("노션 토큰", type="password", disabled=True)
-database_id = st.sidebar.text_input("데이터베이스 ID", disabled=True)
-
-# 메인 앱
-st.title("📺 YouTube 5살 아이용 요약기")
+# 메인 앱 - SUM-Q 미니멀 디자인
 st.markdown("""
-🌟 **YouTube 비디오를 5살 아이가 이해할 수 있게 요약해드려요!**
+<div class="sumq-logo">
+SUM-Q
+</div>
+""", unsafe_allow_html=True)
 
-- 🤖 AI가 자동으로 흥미로운 주제 추출
-- 👶 5살 아이도 이해할 수 있는 쉬운 설명
-- 🌍 다국어 비디오 → 한국어 요약
-- ⚡ MapReduce로 빠른 처리 (기존 대비 6배 빠름!)
-- ✨ **NEW!** AI 검토관이 최종 요약본을 자동으로 개선
-""")
+
 
 # URL 입력
-st.markdown("### 🎬 YouTube URL 입력")
-col1, col2 = st.columns([3, 1])
+youtube_url = st.text_input(
+    "YouTube URL",
+    value=st.session_state.get("selected_url", ""),
+    placeholder="🎬 YouTube URL을 입력하세요",
+    help="YouTube 비디오 URL을 입력하세요",
+    label_visibility="collapsed"
+)
 
-with col1:
-    youtube_url = st.text_input(
-        "YouTube URL",
-        value=st.session_state.get("selected_url", ""),
-        placeholder="https://youtu.be/... 또는 https://www.youtube.com/watch?v=...",
-        help="YouTube 비디오 URL을 입력하세요",
-        label_visibility="collapsed"
-    )
+# 요약 버튼
+process_button = st.button("✨ 요약 시작하기", type="primary", use_container_width=True)
 
-with col2:
-    st.markdown("<br>", unsafe_allow_html=True)  # 높이 맞추기
-    process_button = st.button("🚀 요약하기", type="primary", use_container_width=True)
+# 예시 URLs - 간단하게
+st.markdown("<div style='text-align: center; margin: 2rem 0 1rem 0; color: #A0AEC0; font-size: 0.9rem;'>또는 예시로 체험해보세요</div>", unsafe_allow_html=True)
 
-# 예시 URLs
-st.markdown("**📋 예시 URLs (클릭해서 테스트):**")
 example_urls = [
-    ("한국어 비디오", "https://youtu.be/FI8ozR1NLbA?si=EBTyq171a-vdTQB5"),
-    ("Rick Roll 🎵", "https://youtu.be/dQw4w9WgXcQ"),
-    ("교육 영상", "https://youtu.be/aircAruvnKk")
+    ("⚽ 축구", "https://youtu.be/FI8ozR1NLbA?si=EBTyq171a-vdTQB5"),
+    ("🎵 음악", "https://youtu.be/dQw4w9WgXcQ"),
+    ("📚 교육", "https://youtu.be/aircAruvnKk")
 ]
 
 cols = st.columns(len(example_urls))
@@ -152,173 +298,57 @@ if youtube_url != st.session_state.get("selected_url", ""):
 # 요약 처리
 if process_button and youtube_url:
     try:
-        # 프로그레스 바와 상태 메시지
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        status_text.text("🔍 YouTube 비디오 정보 가져오는 중...")
-        progress_bar.progress(10)
+        status_text.text("🎬 요약 생성 중...")
+        progress_bar.progress(50)
         
         # Flow 실행
         flow = create_youtube_processor_flow()
         shared = {"url": youtube_url}
-        
-        status_text.text("📝 비디오 트랜스크립트 추출 중...")
-        progress_bar.progress(30)
-        
-        start_time = time.time()
-        
-        # 실제 처리 (백그라운드에서 실행)
-        with st.spinner("🤖 AI가 열심히 요약 중입니다... (1-2분 소요)"):
-            flow.run(shared)
-        
-        processing_time = time.time() - start_time
+        flow.run(shared)
         
         progress_bar.progress(100)
-        status_text.text("✅ 요약 완료!")
+        status_text.text("✅ 완료!")
+        
+        time.sleep(0.5)
+        progress_bar.empty()
+        status_text.empty()
         
         # 결과 표시
-        if "html_output" in shared and shared["html_output"]:
-            st.success(f"🎉 요약이 완성되었습니다! (처리 시간: {processing_time:.1f}초)")
-            
-            # 비디오 정보 표시
-            video_info = shared.get("video_info", {})
-            if video_info:
-                st.markdown("### 📹 비디오 정보")
-                col1, col2 = st.columns([1, 2])
-                
-                with col1:
-                    if video_info.get("thumbnail_url"):
-                        st.image(video_info["thumbnail_url"], width=300)
-                
-                with col2:
-                    st.markdown(f"**제목:** {video_info.get('title', 'Unknown')}")
-                    st.markdown(f"**비디오 ID:** {video_info.get('video_id', 'Unknown')}")
-                    st.markdown(f"**언어:** {video_info.get('language_used', 'Unknown')}")
-                    st.markdown(f"**트랜스크립트 길이:** {len(video_info.get('transcript', ''))} 글자")
-            
-            # AI 검토 리포트 표시
-            review_report = shared.get("review_report", {})
-            if review_report:
-                st.markdown("### 🔍 AI 검토 리포트")
-                
-                if review_report.get("status") == "completed":
-                    total_corrections = review_report.get("total_corrections", 0)
-                    topics_reviewed = review_report.get("topics_reviewed", 0)
-                    
-                    if total_corrections > 0:
-                        st.success(f"✨ AI가 {topics_reviewed}개 주제에서 총 {total_corrections}개 개선사항을 발견하고 자동으로 수정했습니다!")
-                        
-                        # 상세 개선사항 표시
-                        with st.expander("📋 상세 개선사항 보기"):
-                            for detail in review_report.get("details", []):
-                                if detail.get("corrections_count", 0) > 0:
-                                    st.markdown(f"**📝 {detail['topic']}** ({detail['corrections_count']}개 개선)")
-                                    
-                                    for correction in detail.get("corrections_made", [])[:3]:
-                                        changes_text = ", ".join(correction.get("changes", []))
-                                        st.markdown(f"   - Q{correction.get('question_number', '')}: {changes_text}")
-                    else:
-                        st.info(f"✅ {topics_reviewed}개 주제 검토 완료 - 추가 개선사항 없음")
-                
-                elif review_report.get("status") == "skipped":
-                    st.warning("⚠️ AI 검토를 건너뛰었습니다 (API 키 없음)")
-                
-                else:
-                    st.error("❌ AI 검토 중 오류 발생")
-            
+        if "html_output" in shared:
             # HTML 요약 표시
-            st.markdown("### 📄 요약 결과")
+            st.markdown(shared["html_output"], unsafe_allow_html=True)
             
-            # HTML을 컴포넌트로 렌더링
-            st.components.v1.html(
-                shared["html_output"], 
-                height=800, 
-                scrolling=True
-            )
-            
-            # 다운로드 및 공유 옵션
-            st.markdown("### 💾 다운로드 & 공유")
-            
-            col1, col2, col3 = st.columns(3)
-            
+            # 다운로드
+            col1, col2 = st.columns(2)
             with col1:
-                # HTML 파일 다운로드
-                video_id = video_info.get('video_id', 'unknown')
-                filename = f"youtube_summary_{video_id}.html"
-                
                 st.download_button(
-                    label="📥 HTML 파일 다운로드",
+                    label="📄 HTML 다운로드",
                     data=shared["html_output"],
-                    file_name=filename,
-                    mime="text/html",
-                    use_container_width=True
+                    file_name=f"sum-q_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
+                    mime="text/html"
                 )
-            
             with col2:
-                # JSON 데이터 다운로드
-                summary_data = {
-                    "video_info": video_info,
-                    "topics": shared.get("final_topics", []),
-                    "processed_at": datetime.now().isoformat(),
-                    "processing_time": processing_time
-                }
-                
-                st.download_button(
-                    label="📊 JSON 데이터 다운로드",
-                    data=json.dumps(summary_data, ensure_ascii=False, indent=2),
-                    file_name=f"youtube_data_{video_id}.json",
-                    mime="application/json",
-                    use_container_width=True
-                )
-            
-            with col3:
-                # 노션 저장 (나중에 구현)
-                st.button(
-                    "📝 노션에 저장 (곧 출시)",
-                    disabled=True,
-                    use_container_width=True,
-                    help="노션 연동 기능은 곧 추가될 예정입니다!"
-                )
+                if "final_topics" in shared:
+                    summary_data = {
+                        "video_info": shared.get("video_info", {}),
+                        "topics": shared.get("final_topics", [])
+                    }
+                    st.download_button(
+                        label="📊 JSON 다운로드",
+                        data=json.dumps(summary_data, ensure_ascii=False, indent=2),
+                        file_name=f"sum-q_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                        mime="application/json"
+                    )
         else:
-            st.error("❌ 요약 생성에 실패했습니다. URL을 확인해주세요.")
+            st.error("❌ 요약 생성 실패")
             
     except Exception as e:
-        st.error(f"❌ 오류가 발생했습니다: {str(e)}")
-        st.info("💡 문제가 계속 발생하면 다른 YouTube URL로 시도해보세요.")
+        st.error(f"❌ 오류: {str(e)}")
 
 elif process_button and not youtube_url:
-    st.error("❌ YouTube URL을 입력해주세요!")
+    st.warning("⚠️ YouTube URL을 입력해주세요!")
 
-# 사용법 가이드
-st.markdown("---")
-with st.expander("📖 사용법 가이드"):
-    st.markdown("""
-    ### 🎯 사용 방법
-    1. **YouTube URL 입력**: 요약하고 싶은 YouTube 비디오 링크를 붙여넣으세요
-    2. **API 키 설정** (선택): 더 좋은 품질을 원하면 OpenAI API 키를 입력하세요
-    3. **요약하기 클릭**: AI가 자동으로 5살 아이용 요약을 만들어줍니다
-    4. **결과 확인**: 생성된 요약을 웹에서 바로 확인하거나 파일로 다운로드하세요
-    
-    ### ⚡ 특징
-    - **빠른 처리**: MapReduce 병렬 처리로 6배 빠른 속도
-    - **다국어 지원**: 영어, 일본어 등 → 한국어 요약
-    - **아이 친화적**: 5살 아이도 이해할 수 있는 쉬운 설명
-    - **모바일 지원**: 스마트폰에서도 완벽하게 작동
-    
-    ### 🔧 기술 스택
-    - **AI**: OpenAI GPT-4
-    - **패턴**: MapReduce 병렬 처리
-    - **프레임워크**: PocketFlow + Streamlit
-    - **배포**: Streamlit Cloud
-    """)
-
-# 푸터
-st.markdown("---")
-st.markdown("""
-<div style='text-align: center; color: gray;'>
-    Made with ❤️ using <a href='https://streamlit.io'>Streamlit</a> & 
-    <a href='https://github.com/the-pocket/PocketFlow'>PocketFlow</a><br>
-    🚀 <a href='https://github.com/anchanwoo/youtube_sum_ai'>GitHub Repository</a>
-</div>
-""", unsafe_allow_html=True) 
+ 
