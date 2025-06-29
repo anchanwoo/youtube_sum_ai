@@ -20,42 +20,49 @@ st.markdown("""
 
 /* 전체 배경 - 삿포로 거리 풍경 */
 .stApp {
-    background: linear-gradient(
-        135deg,
-        rgba(135, 206, 235, 0.9) 0%,
-        rgba(176, 224, 230, 0.9) 30%,
-        rgba(240, 248, 255, 0.9) 70%,
-        rgba(255, 250, 240, 0.9) 100%
-    ),
-    /* 도시 실루엣 효과 */
-    linear-gradient(
-        to bottom,
-        transparent 0%,
-        transparent 60%,
-        rgba(70, 130, 180, 0.1) 60%,
-        rgba(70, 130, 180, 0.2) 80%,
-        rgba(70, 130, 180, 0.3) 100%
-    );
+    background: 
+        /* 반투명 오버레이 */
+        linear-gradient(
+            135deg,
+            rgba(240, 248, 255, 0.92) 0%,
+            rgba(255, 255, 255, 0.88) 50%,
+            rgba(240, 248, 255, 0.92) 100%
+        ),
+        /* 삿포로 거리 이미지 - 사용자 제공 이미지 */
+        url('./assets/sapporo_street.jpg'),
+        /* 폴백 이미지 */
+        url('https://images.unsplash.com/photo-1590559899731-a382839e5549?q=80&w=2068&auto=format&fit=crop')
+        center/cover no-repeat fixed;
     font-family: 'Noto Sans JP', sans-serif;
     min-height: 100vh;
     position: relative;
 }
 
-/* 배경 장식 - 건물과 산 실루엣 */
+/* 배경 이미지 폴백 - 삿포로 거리 스타일 그라데이션 */
 .stApp::before {
     content: "";
     position: fixed;
-    bottom: 0;
+    top: 0;
     left: 0;
     width: 100%;
-    height: 200px;
+    height: 100%;
     background: 
-        /* 산 실루엣 */
-        radial-gradient(ellipse 300px 120px at 20% 100%, rgba(176, 196, 222, 0.4) 0%, transparent 70%),
-        radial-gradient(ellipse 400px 150px at 80% 100%, rgba(176, 196, 222, 0.3) 0%, transparent 70%),
-        /* 건물 실루엣 */
-        linear-gradient(to top, rgba(70, 130, 180, 0.1) 0%, transparent 50%);
-    z-index: -1;
+        /* 삿포로 거리 스타일 */
+        linear-gradient(
+            135deg,
+            rgba(135, 206, 235, 0.3) 0%,
+            rgba(176, 224, 230, 0.2) 30%,
+            rgba(240, 248, 255, 0.1) 70%,
+            rgba(255, 250, 240, 0.2) 100%
+        ),
+        /* 도시 건물 실루엣 */
+        linear-gradient(
+            to top,
+            rgba(70, 130, 180, 0.1) 0%,
+            rgba(70, 130, 180, 0.05) 30%,
+            transparent 60%
+        );
+    z-index: -2;
     pointer-events: none;
 }
 
