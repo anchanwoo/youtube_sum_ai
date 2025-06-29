@@ -4,7 +4,7 @@ import os
 from pocketflow import Node, BatchNode, Flow
 from utils.call_llm import call_llm
 from utils.youtube_processor import get_video_info
-from utils.html_generator import html_generator
+from utils.html_generator import html_generator, streamlit_html_generator
 from utils.topic_extractor import extract_interesting_topics
 from utils.qa_generator import generate_qa_pairs
 from utils.kid_friendly_converter import convert_to_kid_friendly
@@ -27,6 +27,12 @@ class ProcessYouTubeURL(Node):
         stop_flag = shared.get("stop_flag", {})
         if hasattr(stop_flag, 'should_stop') and stop_flag.should_stop:
             raise InterruptedError("처리가 중단되었습니다.")
+        
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            callback("비디오 분석", "YouTube URL 검증 중...", 15)
+        
         return shared.get("url", "")
     
     def exec(self, url):
@@ -56,6 +62,13 @@ class ProcessYouTubeURL(Node):
         shared["video_info"] = exec_res
         logger.info(f"Video title: {exec_res.get('title')}")
         logger.info(f"Transcript length: {len(exec_res.get('transcript', ''))}")
+        
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            title = exec_res.get('title', 'Unknown Video')[:50]
+            callback("비디오 정보 완료", f"✅ 비디오 '{title}...' 정보 추출 완료", 20)
+        
         return "default"
 
 class ExtractTopics(Node):
@@ -66,6 +79,12 @@ class ExtractTopics(Node):
         stop_flag = shared.get("stop_flag", {})
         if hasattr(stop_flag, 'should_stop') and stop_flag.should_stop:
             raise InterruptedError("처리가 중단되었습니다.")
+        
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            callback("주제 추출", "트랜스크립트에서 흥미로운 주제 찾는 중...", 25)
+        
         video_info = shared.get("video_info", {})
         transcript = video_info.get("transcript", "")
         return transcript
@@ -98,6 +117,13 @@ class ExtractTopics(Node):
         logger.info(f"Extracted {len(exec_res)} diverse topics")
         for i, topic in enumerate(exec_res, 1):
             logger.info(f"  {i}. {topic.get('title', 'No title')}")
+        
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            topic_titles = [t.get('title', 'Unknown')[:30] for t in exec_res[:3]]
+            callback("주제 추출 완료", f"✅ 주제 {len(exec_res)}개 발견: {', '.join(topic_titles)}...", 35)
+        
         return "default"
 
 class GenerateQA(BatchNode):
@@ -108,6 +134,12 @@ class GenerateQA(BatchNode):
         stop_flag = shared.get("stop_flag", {})
         if hasattr(stop_flag, 'should_stop') and stop_flag.should_stop:
             raise InterruptedError("처리가 중단되었습니다.")
+        
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            callback("Q&A 생성", "각 주제별로 질문과 답변 만드는 중...", 40)
+        
         topics = shared.get("topics", [])
         return topics
     
@@ -140,6 +172,12 @@ class GenerateQA(BatchNode):
         
         total_questions = sum(len(topic["qa_pairs"]) for topic in exec_res_list)
         logger.info(f"Generated {total_questions} Q&A pairs across {len(exec_res_list)} topics")
+        
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            callback("Q&A 생성 완료", f"✅ 총 {total_questions}개의 질문-답변 쌍 생성완료!", 55)
+        
         return "default"
 
 class ConvertToKidFriendly(BatchNode):
@@ -150,6 +188,12 @@ class ConvertToKidFriendly(BatchNode):
         stop_flag = shared.get("stop_flag", {})
         if hasattr(stop_flag, 'should_stop') and stop_flag.should_stop:
             raise InterruptedError("처리가 중단되었습니다.")
+        
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            callback("아이 친화적 변환", "5살 아이도 이해할 수 있도록 쉽게 바꾸는 중...", 60)
+        
         topics_with_qa = shared.get("topics_with_qa", [])
         
         # Flatten Q&A pairs for individual processing
@@ -221,12 +265,23 @@ class ConvertToKidFriendly(BatchNode):
         shared["final_topics"] = final_topics
         
         logger.info(f"Converted {len(exec_res_list)} Q&A pairs to kid-friendly format")
+        
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            callback("친화적 변환 완료", f"✅ {len(exec_res_list)}개 질문-답변을 아이 친화적으로 변환완료!", 75)
+        
         return "default"
 
 class ReviewAndCorrect(Node):
     """AI가 최종 요약본을 검토하고 개선"""
     def prep(self, shared):
         """Get final topics and video info for review"""
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            callback("AI 검토", "AI가 요약 내용의 품질과 정확성을 검토하는 중...", 80)
+        
         final_topics = shared.get("final_topics", [])
         video_info = shared.get("video_info", {})
         
@@ -296,12 +351,25 @@ class ReviewAndCorrect(Node):
         review_summary = generate_review_summary(review_report)
         logger.info(f"AI 검토 완료: {review_summary}")
         
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            callback("AI 검토 완료", f"✅ AI 검토 완료: {review_summary[:50]}...", 85)
+        
         return "default"
 
 class SaveToNotion(Node):
     """Save the processed content to Notion database"""
     def prep(self, shared):
         """Get video info and final topics from shared"""
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            if os.getenv('NOTION_TOKEN') and os.getenv('NOTION_DATABASE_ID'):
+                callback("노션 저장", "노션 데이터베이스에 요약 결과 저장 중...", 90)
+            else:
+                callback("노션 건너뛰기", "노션 설정이 없어 이 단계를 건너뜁니다...", 90)
+        
         video_info = shared.get("video_info", {})
         final_topics = shared.get("final_topics", [])
         
@@ -352,12 +420,25 @@ class SaveToNotion(Node):
         else:
             logger.warning(f"⚠️ 노션 저장 실패: {exec_res.get('error', '알 수 없는 오류')}")
         
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            if exec_res.get("success"):
+                callback("노션 저장 완료", "✅ 노션 데이터베이스에 성공적으로 저장되었습니다!", 95)
+            else:
+                callback("노션 저장 건너뛰기", "ℹ️ 노션 설정이 없어 이 단계를 건너뛰었습니다", 95)
+        
         return "default"
 
 class GenerateHTML(Node):
     """Generate HTML output from processed content"""
     def prep(self, shared):
         """Get video info and final topics from shared"""
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            callback("HTML 생성", "최종 HTML 페이지를 생성하는 중...", 98)
+        
         video_info = shared.get("video_info", {})
         final_topics = shared.get("final_topics", [])
         
@@ -403,20 +484,32 @@ class GenerateHTML(Node):
                     "bullets": bullets
                 })
         
-        # Generate HTML
-        html_content = html_generator(title, thumbnail_url, sections)
-        return html_content
+        # Generate HTML for both purposes
+        file_html = html_generator(title, thumbnail_url, sections)
+        streamlit_html = streamlit_html_generator(title, thumbnail_url, sections)
+        
+        return {
+            "file_html": file_html,
+            "streamlit_html": streamlit_html
+        }
     
     def post(self, shared, prep_res, exec_res):
         """Store HTML output and save to file"""
-        shared["html_output"] = exec_res
+        shared["html_output"] = exec_res["streamlit_html"]  # Streamlit용 HTML
+        shared["file_html"] = exec_res["file_html"]  # 파일 다운로드용 HTML
         
         # Write HTML to file
         output_file = "output.html"
         with open(output_file, "w", encoding="utf-8") as f:
-            f.write(exec_res)
+            f.write(exec_res["file_html"])
         
         logger.info(f"Generated HTML output and saved to {output_file}")
+        
+        # 진행상황 업데이트
+        callback = shared.get("progress_callback")
+        if callback:
+            callback("HTML 생성 완료", "✅ 아름다운 HTML 페이지가 완성되었습니다!", 100)
+        
         return "default"
 
 def create_youtube_processor_flow():

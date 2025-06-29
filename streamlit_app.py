@@ -190,9 +190,60 @@ st.markdown("""
     border-color: rgba(255, 255, 255, 0.3);
 }
 
+/* 중단 버튼 - 빨간색 스타일 */
+.stButton > button[kind="secondary"] {
+    background: linear-gradient(145deg, #E53E3E 0%, #C53030 100%);
+    color: #FFFFFF;
+    border: none;
+    border-radius: 20px;
+    font-family: 'Fredoka One', cursive;
+    font-weight: 400;
+    font-size: 18px;
+    padding: 1rem 2.5rem;
+    transition: all 0.3s ease;
+    text-transform: none;
+    letter-spacing: 1px;
+    box-shadow: 0 8px 20px rgba(229, 62, 62, 0.3);
+    width: 100%;
+    margin-top: 1rem;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    animation: pulse 2s infinite;
+}
 
+.stButton > button[kind="secondary"]:hover {
+    background: linear-gradient(145deg, #C53030 0%, #9C2A2A 100%);
+    box-shadow: 0 12px 30px rgba(229, 62, 62, 0.5);
+    transform: translateY(-3px);
+    border-color: rgba(255, 255, 255, 0.3);
+}
 
-/* 숨김 처리 */
+/* 중단 버튼 펄스 애니메이션 */
+@keyframes pulse {
+    0% { box-shadow: 0 8px 20px rgba(229, 62, 62, 0.3); }
+    50% { box-shadow: 0 12px 30px rgba(229, 62, 62, 0.6); }
+    100% { box-shadow: 0 8px 20px rgba(229, 62, 62, 0.3); }
+}
+</style>
+""", unsafe_allow_html=True)
+
+# 페이지 나가기 전 경고 JavaScript + 추가 스타일
+st.markdown("""
+<script>
+// 페이지 나가기 전 경고 (처리 중일 때만)
+window.addEventListener('beforeunload', function (e) {
+    // Streamlit session state를 직접 확인할 수는 없으므로 
+    // 중단 버튼이 존재하는지로 판단
+    const stopButton = document.querySelector('button[kind="secondary"]');
+    if (stopButton) {
+        e.preventDefault();
+        e.returnValue = '요약이 진행 중입니다. 페이지를 나가면 처리가 중단됩니다. 정말 나가시겠습니까?';
+        return e.returnValue;
+    }
+});
+</script>
+
+<style>
+/* 추가 스타일 - 깔끔한 UI */
 .stProgress, 
 .stSuccess, 
 .stWarning, 
@@ -253,8 +304,6 @@ SUM-Q
 </div>
 """, unsafe_allow_html=True)
 
-
-
 # URL 입력
 youtube_url = st.text_input(
     "YouTube URL",
@@ -264,20 +313,16 @@ youtube_url = st.text_input(
     label_visibility="collapsed"
 )
 
-# 버튼 영역
+# 버튼 영역 - 상태에 따라 버튼 변경
 if not st.session_state.processing:
-    # 요약 시작 버튼
+    # 요약 시작 버튼 (파란색)
     process_button = st.button("✨ 요약 시작하기", type="primary", use_container_width=True)
     stop_button = False
 else:
-    # 중단 버튼
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.info("🎬 요약 생성 중... 잠시만 기다려주세요!")
-    with col2:
-        stop_button = st.button("🛑 중단", use_container_width=True)
-        if stop_button:
-            st.session_state.should_stop = True
+    # 중단 버튼 (빨간색, 펄스 애니메이션)
+    stop_button = st.button("🛑 중단하기", type="secondary", use_container_width=True)
+    if stop_button:
+        st.session_state.should_stop = True
     process_button = False
 
 # URL이 변경되면 session state 업데이트
@@ -326,14 +371,24 @@ elif process_button and not youtube_url:
 # 실제 처리 로직 (처리 중일 때만 실행)
 if st.session_state.processing:
     try:
+        # 진행 상황 표시
+        st.info("🎬 요약 생성 중... 중단하려면 위의 빨간 버튼을 클릭하세요!")
+        
         progress_bar = st.progress(0)
         status_container = st.container()
         
         with status_container:
             status_text = st.empty()
+            detail_text = st.empty()
             
-        status_text.text("🎬 비디오 정보 가져오는 중...")
-        progress_bar.progress(10)
+        # 진행상황 업데이트 함수
+        def update_progress(stage, message, progress=None):
+            if progress is not None:
+                progress_bar.progress(progress)
+            status_text.text(f"📍 {stage}")
+            detail_text.info(f"ℹ️ {message}")
+            
+        update_progress("초기화", "YouTube 처리 시스템 준비 중...", 5)
         
         # 중단 확인
         if st.session_state.should_stop:
@@ -344,23 +399,15 @@ if st.session_state.processing:
             
         # Flow 실행
         flow = create_youtube_processor_flow()
-        shared = {"url": youtube_url, "stop_flag": st.session_state}
         
-        status_text.text("📝 주제 추출 중...")
-        progress_bar.progress(30)
+        # 공유된 상태에 progress callback 추가
+        shared = {
+            "url": youtube_url, 
+            "stop_flag": st.session_state,
+            "progress_callback": update_progress  # 실시간 업데이트 함수
+        }
         
-        # 중단 확인
-        if st.session_state.should_stop:
-            st.warning("🛑 사용자가 중단했습니다.")
-            st.session_state.processing = False
-            st.session_state.should_stop = False
-            st.rerun()
-        
-        status_text.text("❓ Q&A 생성 중...")
-        progress_bar.progress(60)
-        
-        # Flow 실행
-        flow.run(shared)
+        update_progress("비디오 처리", "YouTube 비디오 정보 가져오는 중...", 10)
         
         # 중단 확인
         if st.session_state.should_stop:
@@ -369,8 +416,32 @@ if st.session_state.processing:
             st.session_state.should_stop = False
             st.rerun()
         
-        progress_bar.progress(100)
-        status_text.text("✅ 완료!")
+        # 단계별 진행상황 업데이트
+        try:
+            # 실제 Flow 실행
+            update_progress("주제 추출", "흥미로운 주제 5개 찾는 중...", 25)
+            
+            # Flow 실행 (실제 처리는 여기서)
+            flow.run(shared)
+            
+            # 완료
+            progress_bar.progress(100)
+            status_text.text("✅ 모든 단계 완료!")
+            detail_text.success("🎉 YouTube 비디오 요약이 성공적으로 생성되었습니다!")
+            
+        except Exception as flow_error:
+            # Flow 실행 중 에러 처리
+            if "중단" in str(flow_error) or "InterruptedError" in str(type(flow_error).__name__):
+                st.warning("🛑 사용자가 중단했습니다.")
+            else:
+                raise flow_error
+        
+        # 중단 확인
+        if st.session_state.should_stop:
+            st.warning("🛑 사용자가 중단했습니다.")
+            st.session_state.processing = False
+            st.session_state.should_stop = False
+            st.rerun()
         
         # 처리 완료
         st.session_state.processing = False
@@ -378,6 +449,7 @@ if st.session_state.processing:
         time.sleep(0.5)
         progress_bar.empty()
         status_text.empty()
+        detail_text.empty()
         
         # 결과 표시
         if "html_output" in shared:
@@ -394,15 +466,31 @@ if st.session_state.processing:
                     else:
                         st.warning(f"⚠️ 노션 저장 실패: {notion_result.get('error', '알 수 없는 오류')}")
             
+            # 처리 결과 요약 표시
+            if "final_topics" in shared:
+                st.success("🎯 **처리 완료 요약**")
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("📝 추출된 주제", len(shared["final_topics"]))
+                with col2:
+                    total_qa = sum(len(topic["qa_pairs"]) for topic in shared["final_topics"])
+                    st.metric("❓ 생성된 Q&A", total_qa)
+                with col3:
+                    video_info = shared.get("video_info", {})
+                    duration = video_info.get("duration", "N/A")
+                    st.metric("⏱️ 비디오 길이", duration)
+            
             # HTML 요약 표시
             st.markdown(shared["html_output"], unsafe_allow_html=True)
             
             # 다운로드
             col1, col2 = st.columns(2)
             with col1:
+                # 파일용 HTML 다운로드
+                download_html = shared.get("file_html", shared["html_output"])
                 st.download_button(
                     label="📄 HTML 다운로드",
-                    data=shared["html_output"],
+                    data=download_html,
                     file_name=f"sum-q_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html",
                     mime="text/html"
                 )
