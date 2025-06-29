@@ -110,6 +110,7 @@ st.markdown("""
 - 👶 5살 아이도 이해할 수 있는 쉬운 설명
 - 🌍 다국어 비디오 → 한국어 요약
 - ⚡ MapReduce로 빠른 처리 (기존 대비 6배 빠름!)
+- ✨ **NEW!** AI 검토관이 최종 요약본을 자동으로 개선
 """)
 
 # URL 입력
@@ -195,6 +196,36 @@ if process_button and youtube_url:
                     st.markdown(f"**비디오 ID:** {video_info.get('video_id', 'Unknown')}")
                     st.markdown(f"**언어:** {video_info.get('language_used', 'Unknown')}")
                     st.markdown(f"**트랜스크립트 길이:** {len(video_info.get('transcript', ''))} 글자")
+            
+            # AI 검토 리포트 표시
+            review_report = shared.get("review_report", {})
+            if review_report:
+                st.markdown("### 🔍 AI 검토 리포트")
+                
+                if review_report.get("status") == "completed":
+                    total_corrections = review_report.get("total_corrections", 0)
+                    topics_reviewed = review_report.get("topics_reviewed", 0)
+                    
+                    if total_corrections > 0:
+                        st.success(f"✨ AI가 {topics_reviewed}개 주제에서 총 {total_corrections}개 개선사항을 발견하고 자동으로 수정했습니다!")
+                        
+                        # 상세 개선사항 표시
+                        with st.expander("📋 상세 개선사항 보기"):
+                            for detail in review_report.get("details", []):
+                                if detail.get("corrections_count", 0) > 0:
+                                    st.markdown(f"**📝 {detail['topic']}** ({detail['corrections_count']}개 개선)")
+                                    
+                                    for correction in detail.get("corrections_made", [])[:3]:
+                                        changes_text = ", ".join(correction.get("changes", []))
+                                        st.markdown(f"   - Q{correction.get('question_number', '')}: {changes_text}")
+                    else:
+                        st.info(f"✅ {topics_reviewed}개 주제 검토 완료 - 추가 개선사항 없음")
+                
+                elif review_report.get("status") == "skipped":
+                    st.warning("⚠️ AI 검토를 건너뛰었습니다 (API 키 없음)")
+                
+                else:
+                    st.error("❌ AI 검토 중 오류 발생")
             
             # HTML 요약 표시
             st.markdown("### 📄 요약 결과")

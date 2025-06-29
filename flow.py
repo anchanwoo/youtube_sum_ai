@@ -9,6 +9,7 @@ from utils.topic_extractor import extract_interesting_topics
 from utils.qa_generator import generate_qa_pairs
 from utils.kid_friendly_converter import convert_to_kid_friendly
 from utils.content_validator import validate_transcript_quality, ensure_topic_diversity
+from utils.final_reviewer import review_and_correct_summary, generate_review_summary
 
 # Set up logging
 logging.basicConfig(
@@ -205,6 +206,81 @@ class ConvertToKidFriendly(BatchNode):
         logger.info(f"Converted {len(exec_res_list)} Q&A pairs to kid-friendly format")
         return "default"
 
+class ReviewAndCorrect(Node):
+    """AI가 최종 요약본을 검토하고 개선"""
+    def prep(self, shared):
+        """Get final topics and video info for review"""
+        final_topics = shared.get("final_topics", [])
+        video_info = shared.get("video_info", {})
+        
+        # Convert to format expected by reviewer
+        review_topics = []
+        for topic in final_topics:
+            qa_pairs = []
+            for qa in topic["qa_pairs"]:
+                qa_pairs.append({
+                    "question": qa["kid_friendly_question"],
+                    "answer": qa["kid_friendly_answer"]
+                })
+            
+            review_topics.append({
+                "topic": topic["title"],
+                "qa_pairs": qa_pairs
+            })
+        
+        return {
+            "topics": review_topics,
+            "video_title": video_info.get("title", ""),
+            "video_context": video_info.get("description", "")
+        }
+    
+    def exec(self, data):
+        """AI가 요약본 검토 및 개선"""
+        logger.info("AI가 최종 요약본을 검토하고 개선하는 중...")
+        
+        improved_topics, review_report = review_and_correct_summary(
+            topics_with_qa=data["topics"],
+            video_title=data["video_title"],
+            video_context=data["video_context"]
+        )
+        
+        return {
+            "improved_topics": improved_topics,
+            "review_report": review_report
+        }
+    
+    def post(self, shared, prep_res, exec_res):
+        """Store improved content and review report"""
+        improved_topics = exec_res["improved_topics"]
+        review_report = exec_res["review_report"]
+        
+        # Convert back to original format
+        final_topics = []
+        for topic in improved_topics:
+            qa_pairs = []
+            for qa in topic["qa_pairs"]:
+                qa_pairs.append({
+                    "kid_friendly_question": qa["question"],
+                    "kid_friendly_answer": qa["answer"],
+                    "original_question": qa["question"],  # Keep for compatibility
+                    "original_answer": qa["answer"]      # Keep for compatibility
+                })
+            
+            final_topics.append({
+                "title": topic["topic"],
+                "qa_pairs": qa_pairs
+            })
+        
+        # Update shared store
+        shared["final_topics"] = final_topics
+        shared["review_report"] = review_report
+        
+        # Log review summary
+        review_summary = generate_review_summary(review_report)
+        logger.info(f"AI 검토 완료: {review_summary}")
+        
+        return "default"
+
 class GenerateHTML(Node):
     """Generate HTML output from processed content"""
     def prep(self, shared):
@@ -277,15 +353,16 @@ def create_youtube_processor_flow():
     extract_topics = ExtractTopics(max_retries=3, wait=2)
     generate_qa = GenerateQA(max_retries=3, wait=2)
     convert_kid_friendly = ConvertToKidFriendly(max_retries=3, wait=2)
+    review_and_correct = ReviewAndCorrect(max_retries=2, wait=2)  # 새로운 검토 단계!
     generate_html = GenerateHTML(max_retries=2, wait=1)
     
-    # Connect nodes in sequence
-    process_url >> extract_topics >> generate_qa >> convert_kid_friendly >> generate_html
+    # Connect nodes in sequence with AI Review step
+    process_url >> extract_topics >> generate_qa >> convert_kid_friendly >> review_and_correct >> generate_html
     
     # Create flow
     flow = Flow(start=process_url)
     
-    logger.info("YouTube processor flow created successfully")
+    logger.info("YouTube processor flow created successfully with AI Review")
     return flow
 
 if __name__ == "__main__":
