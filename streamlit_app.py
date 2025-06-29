@@ -190,38 +190,7 @@ st.markdown("""
     border-color: rgba(255, 255, 255, 0.3);
 }
 
-/* 예시 버튼들 - 일본 도시 스타일 */
-.stButton > button {
-    background: rgba(255, 255, 255, 0.85);
-    color: #2D3748;
-    border: 2px solid rgba(45, 55, 72, 0.2);
-    border-radius: 15px;
-    font-family: 'Noto Sans JP', sans-serif;
-    font-weight: 500;
-    font-size: 14px;
-    padding: 0.75rem 1rem;
-    transition: all 0.3s ease;
-    text-transform: none;
-    backdrop-filter: blur(5px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
 
-.stButton > button:hover {
-    background: rgba(66, 153, 225, 0.15);
-    border-color: #4299E1;
-    color: #3182CE;
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(66, 153, 225, 0.2);
-}
-
-/* 예시 버튼 컨테이너 */
-.example-buttons {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-    margin: 1.5rem 0;
-    flex-wrap: wrap;
-}
 
 /* 숨김 처리 */
 .stProgress, 
@@ -293,22 +262,6 @@ youtube_url = st.text_input(
 
 # 요약 버튼
 process_button = st.button("✨ 요약 시작하기", type="primary", use_container_width=True)
-
-# 예시 URLs - 간단하게
-st.markdown("<div style='text-align: center; margin: 2rem 0 1rem 0; color: #A0AEC0; font-size: 0.9rem;'>또는 예시로 체험해보세요</div>", unsafe_allow_html=True)
-
-example_urls = [
-    ("⚽ 축구", "https://youtu.be/FI8ozR1NLbA?si=EBTyq171a-vdTQB5"),
-    ("🎵 음악", "https://youtu.be/dQw4w9WgXcQ"),
-    ("📚 교육", "https://youtu.be/aircAruvnKk")
-]
-
-cols = st.columns(len(example_urls))
-for i, (title, url) in enumerate(example_urls):
-    with cols[i]:
-        if st.button(f"{title}", key=f"example_{i}"):
-            st.session_state.selected_url = url
-            st.rerun()
 
 # URL이 변경되면 session state 업데이트
 if youtube_url != st.session_state.get("selected_url", ""):
