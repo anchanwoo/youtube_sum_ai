@@ -22,6 +22,8 @@ def extract_interesting_topics(transcript: str, num_topics: int = 5, use_mock: b
 다음 비디오 트랜스크립트를 분석하여 가장 흥미로운 주제 {num_topics}개를 추출해주세요.
 각 주제는 비디오의 핵심 내용을 대표해야 하며, 서로 다른 관점이나 영역을 다루어야 합니다.
 
+**중요**: 입력 언어가 무엇이든 관계없이 반드시 한국어로 답변해주세요.
+
 트랜스크립트:
 {transcript[:3000]}  
 
@@ -69,22 +71,17 @@ def extract_interesting_topics(transcript: str, num_topics: int = 5, use_mock: b
 def main():
     """테스트용 함수"""
     test_transcript = """
-    안녕하세요 여러분! 오늘은 인공지능에 대해 이야기해보겠습니다.
-    AI는 우리 생활을 많이 바꾸고 있어요. 스마트폰에서부터 자동차까지
-    곳곳에서 인공지능 기술을 만날 수 있습니다. 
-    특히 챗GPT 같은 언어 모델은 정말 놀라운 능력을 보여주고 있죠.
-    하지만 AI 발전과 함께 윤리적 문제도 고려해야 합니다.
-    일자리 문제, 개인정보 보호, AI의 편향성 등 여러 과제가 있어요.
-    그럼에도 AI는 의료, 교육, 환경 보호 등에서 큰 도움을 줄 것입니다.
+    Artificial intelligence is revolutionizing the way we live and work. 
+    From healthcare to transportation, AI is transforming industries.
+    However, there are important ethical considerations we must address.
     """
     
-    print("=== Mock 버전 테스트 ===")
+    print("=== Mock 버전 테스트 (영어 입력, 한국어 출력) ===")
     topics = extract_interesting_topics(test_transcript, num_topics=3, use_mock=True)
-    print("추출된 주제들:")
+    print("추출된 주제:")
     for i, topic in enumerate(topics, 1):
-        print(f"{i}. {topic.get('title', 'No title')}")
+        print(f"\n{i}. 제목: {topic.get('title', 'No title')}")
         print(f"   내용: {topic.get('content', 'No content')[:100]}...")
-        print()
 
 if __name__ == "__main__":
     main() 

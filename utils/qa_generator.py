@@ -24,6 +24,8 @@ def generate_qa_pairs(topic_title: str, topic_content: str, num_questions: int =
 질문은 호기심을 자극하고 학습에 도움이 되어야 합니다.
 답변은 상세하고 이해하기 쉬워야 합니다.
 
+**중요**: 입력 언어가 무엇이든 관계없이 반드시 한국어로 질문과 답변을 작성해주세요.
+
 주제: {topic_title}
 내용: {topic_content}
 
@@ -70,10 +72,10 @@ def generate_qa_pairs(topic_title: str, topic_content: str, num_questions: int =
 
 def main():
     """테스트용 함수"""
-    test_title = "인공지능의 사회적 영향"
-    test_content = "AI는 헬스케어부터 교통까지 많은 산업을 혁신하고 있습니다. 하지만 윤리적 고려사항도 중요합니다."
+    test_title = "Artificial Intelligence and Society"
+    test_content = "AI is transforming healthcare, transportation, and education. However, we must consider ethical implications and job displacement concerns."
     
-    print("=== Mock 버전 테스트 ===")
+    print("=== Mock 버전 테스트 (영어 입력, 한국어 출력) ===")
     qa_pairs = generate_qa_pairs(test_title, test_content, num_questions=2, use_mock=True)
     print("생성된 Q&A:")
     for i, pair in enumerate(qa_pairs, 1):

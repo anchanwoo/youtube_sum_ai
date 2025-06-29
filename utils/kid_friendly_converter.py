@@ -21,6 +21,8 @@ def convert_to_kid_friendly(text: str, target_age: int = 5, use_mock: bool = Fal
     prompt = f"""
 다음 텍스트를 {target_age}살 아이가 이해할 수 있도록 쉽게 설명해주세요.
 
+**중요**: 입력 언어가 무엇이든 관계없이 반드시 한국어로 설명해주세요.
+
 원본 텍스트:
 {text}
 
@@ -93,6 +95,8 @@ def add_friendly_examples(text: str, use_mock: bool = False) -> str:
 다음 텍스트에 아이들이 이해하기 쉬운 비유나 예시를 추가해주세요.
 동물, 장난감, 일상생활의 예시를 사용하여 설명을 더 재미있게 만들어주세요.
 
+**중요**: 반드시 한국어로 작성해주세요.
+
 원본 텍스트:
 {text}
 
@@ -112,18 +116,18 @@ def add_friendly_examples(text: str, use_mock: bool = False) -> str:
 def main():
     """테스트용 함수"""
     test_text = """
-    인공지능은 머신러닝 알고리즘을 통해 데이터를 분석하고 
-    패턴을 인식하여 의사결정을 최적화하는 시스템입니다.
+    Artificial intelligence uses machine learning algorithms to analyze data 
+    and recognize patterns for optimized decision-making systems.
     """
     
-    print("원본 텍스트:")
+    print("원본 텍스트 (영어):")
     print(test_text)
     
     print("\n단어 단순화:")
     simplified = simplify_vocabulary(test_text)
     print(simplified)
     
-    print("\n=== Mock 버전 테스트 ===")
+    print("\n=== Mock 버전 테스트 (영어 입력, 한국어 출력) ===")
     print("5살 아이 버전:")
     kid_friendly = convert_to_kid_friendly(test_text, use_mock=True)
     print(kid_friendly)
