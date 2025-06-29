@@ -1,0 +1,90 @@
+from .call_llm import call_llm, call_llm_mock
+import os
+
+def extract_interesting_topics(transcript: str, num_topics: int = 5, use_mock: bool = False) -> list:
+    """
+    트랜스크립트에서 흥미로운 주제들을 추출
+    
+    Args:
+        transcript: 비디오 트랜스크립트 텍스트
+        num_topics: 추출할 주제 개수
+        use_mock: True면 Mock 버전 사용 (API 키 없이 테스트 가능)
+    
+    Returns:
+        주제 리스트: [{"title": "주제명", "content": "관련 내용"}]
+    """
+    # API 키가 없으면 자동으로 Mock 사용
+    if not os.getenv("OPENAI_API_KEY"):
+        use_mock = True
+        print("⚠️ OPENAI_API_KEY가 없어서 Mock 버전을 사용합니다.")
+    
+    prompt = f"""
+다음 비디오 트랜스크립트를 분석하여 가장 흥미로운 주제 {num_topics}개를 추출해주세요.
+각 주제는 비디오의 핵심 내용을 대표해야 하며, 서로 다른 관점이나 영역을 다루어야 합니다.
+
+트랜스크립트:
+{transcript[:3000]}  
+
+다음 JSON 형식으로만 응답해주세요 (다른 설명 없이):
+```json
+[
+    {{
+        "title": "주제 제목 (간결하고 명확하게)",
+        "content": "해당 주제와 관련된 트랜스크립트의 핵심 내용 요약"
+    }},
+    {{
+        "title": "두 번째 주제 제목",
+        "content": "두 번째 주제 관련 내용 요약"
+    }}
+]
+```
+"""
+    
+    try:
+        if use_mock:
+            response = call_llm_mock(prompt)
+        else:
+            response = call_llm(prompt, model="gpt-4")
+            
+        # JSON 부분만 추출
+        if "```json" in response:
+            json_start = response.find("```json") + 7
+            json_end = response.find("```", json_start)
+            json_str = response[json_start:json_end].strip()
+        else:
+            json_start = response.find('[')
+            json_end = response.rfind(']') + 1
+            json_str = response[json_start:json_end] if json_start != -1 and json_end != -1 else response
+        
+        if json_str:
+            import json
+            topics = json.loads(json_str)
+            return topics[:num_topics]  # 요청한 개수만큼만 반환
+        else:
+            return []
+    except Exception as e:
+        print(f"Error extracting topics: {e}")
+        return []
+
+def main():
+    """테스트용 함수"""
+    test_transcript = """
+    안녕하세요 여러분! 오늘은 인공지능에 대해 이야기해보겠습니다.
+    AI는 우리 생활을 많이 바꾸고 있어요. 스마트폰에서부터 자동차까지
+    곳곳에서 인공지능 기술을 만날 수 있습니다. 
+    특히 챗GPT 같은 언어 모델은 정말 놀라운 능력을 보여주고 있죠.
+    하지만 AI 발전과 함께 윤리적 문제도 고려해야 합니다.
+    일자리 문제, 개인정보 보호, AI의 편향성 등 여러 과제가 있어요.
+    그럼에도 AI는 의료, 교육, 환경 보호 등에서 큰 도움을 줄 것입니다.
+    """
+    
+    print("=== Mock 버전 테스트 ===")
+    topics = extract_interesting_topics(test_transcript, num_topics=3, use_mock=True)
+    print("추출된 주제들:")
+    for i, topic in enumerate(topics, 1):
+        print(f"{i}. {topic.get('title', 'No title')}")
+        print(f"   내용: {topic.get('content', 'No content')[:100]}...")
+        print()
+
+if __name__ == "__main__":
+    main() 

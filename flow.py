@@ -1,10 +1,14 @@
-from typing import List, Dict, Any, Tuple
-import yaml
+from typing import List, Dict, Any
 import logging
+import os
 from pocketflow import Node, BatchNode, Flow
 from utils.call_llm import call_llm
 from utils.youtube_processor import get_video_info
 from utils.html_generator import html_generator
+from utils.topic_extractor import extract_interesting_topics
+from utils.qa_generator import generate_qa_pairs
+from utils.kid_friendly_converter import convert_to_kid_friendly
+from utils.content_validator import validate_transcript_quality, ensure_topic_diversity
 
 # Set up logging
 logging.basicConfig(
@@ -12,8 +16,6 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
-
-# Define the specific nodes for the YouTube Content Processor
 
 class ProcessYouTubeURL(Node):
     """Process YouTube URL to extract video information"""
@@ -32,6 +34,15 @@ class ProcessYouTubeURL(Node):
         if "error" in video_info:
             raise ValueError(f"Error processing video: {video_info['error']}")
         
+        # Validate transcript quality
+        transcript = video_info.get("transcript", "")
+        validation = validate_transcript_quality(transcript)
+        
+        if not validation["is_valid"]:
+            logger.warning(f"Transcript quality issues: {validation['issues']}")
+            # Continue anyway, but log the issues
+        
+        logger.info(f"Transcript word count: {validation['word_count']}")
         return video_info
     
     def post(self, shared, prep_res, exec_res):
@@ -41,255 +52,205 @@ class ProcessYouTubeURL(Node):
         logger.info(f"Transcript length: {len(exec_res.get('transcript', ''))}")
         return "default"
 
-class ExtractTopicsAndQuestions(Node):
-    """Extract interesting topics and generate questions from the video transcript"""
+class ExtractTopics(Node):
+    """Extract interesting topics from the video transcript"""
     def prep(self, shared):
-        """Get transcript and title from video_info"""
+        """Get transcript from video_info"""
         video_info = shared.get("video_info", {})
         transcript = video_info.get("transcript", "")
-        title = video_info.get("title", "")
-        return {"transcript": transcript, "title": title}
+        return transcript
     
-    def exec(self, data):
-        """Extract topics and generate questions using LLM"""
-        transcript = data["transcript"]
-        title = data["title"]
+    def exec(self, transcript):
+        """Extract topics using our topic_extractor utility"""
+        if not transcript:
+            raise ValueError("No transcript available for topic extraction")
         
-        # Single prompt to extract topics and questions together
-        prompt = f"""
-You are an expert content analyzer. Given a YouTube video transcript, identify at most 5 most interesting topics discussed and generate at most 3 most thought-provoking questions for each topic.
-These questions don't need to be directly asked in the video. It's good to have clarification questions.
-
-VIDEO TITLE: {title}
-
-TRANSCRIPT:
-{transcript}
-
-Format your response in YAML:
-
-```yaml
-topics:
-  - title: |
-        First Topic Title
-    questions:
-      - |
-        Question 1 about first topic?
-      - |
-        Question 2 ...
-  - title: |
-        Second Topic Title
-    questions:
-        ...
-```
-        """
+        logger.info("Extracting interesting topics...")
         
-        response = call_llm(prompt)
+        # API 키 확인
+        use_mock = not os.getenv("OPENAI_API_KEY")
+        if use_mock:
+            logger.info("Using Mock mode for topic extraction")
         
-        # Extract YAML content
-        yaml_content = response.split("```yaml")[1].split("```")[0].strip() if "```yaml" in response else response
+        topics = extract_interesting_topics(transcript, num_topics=5, use_mock=use_mock)
         
-
-        parsed = yaml.safe_load(yaml_content)
-        raw_topics = parsed.get("topics", [])
+        if not topics:
+            raise ValueError("Failed to extract topics from transcript")
         
-        # Ensure we have at most 5 topics
-        raw_topics = raw_topics[:5]
+        # Ensure topic diversity
+        topics = ensure_topic_diversity(topics)
         
-        # Format the topics and questions for our data structure
-        result_topics = []
-        for topic in raw_topics:
-            topic_title = topic.get("title", "")
-            raw_questions = topic.get("questions", [])
-            
-            # Create a complete topic with questions
-            result_topics.append({
-                "title": topic_title,
-                "questions": [
-                    {
-                        "original": q,
-                        "rephrased": "",
-                        "answer": ""
-                    }
-                    for q in raw_questions
-                ]
-            })
-        
-        return result_topics
+        return topics
     
     def post(self, shared, prep_res, exec_res):
-        """Store topics with questions in shared"""
+        """Store topics in shared"""
         shared["topics"] = exec_res
-        
-        # Count total questions
-        total_questions = sum(len(topic.get("questions", [])) for topic in exec_res)
-        
-        logger.info(f"Extracted {len(exec_res)} topics with {total_questions} questions")
+        logger.info(f"Extracted {len(exec_res)} diverse topics")
+        for i, topic in enumerate(exec_res, 1):
+            logger.info(f"  {i}. {topic.get('title', 'No title')}")
         return "default"
 
-class ProcessContent(BatchNode):
-    """Process each topic for rephrasing and answering"""
+class GenerateQA(BatchNode):
+    """Generate Q&A pairs for each topic"""
     def prep(self, shared):
         """Return list of topics for batch processing"""
         topics = shared.get("topics", [])
-        video_info = shared.get("video_info", {})
-        transcript = video_info.get("transcript", "")
-        
-        batch_items = []
-        for topic in topics:
-            batch_items.append({
-                "topic": topic,
-                "transcript": transcript
-            })
-        
-        return batch_items
+        return topics
     
-    def exec(self, item):
-        """Process a topic using LLM"""
-        topic = item["topic"]
-        transcript = item["transcript"]
+    def exec(self, topic):
+        """Generate Q&A pairs for a single topic"""
+        topic_title = topic.get("title", "")
+        topic_content = topic.get("content", "")
         
-        topic_title = topic["title"]
-        questions = [q["original"] for q in topic["questions"]]
+        logger.info(f"Generating Q&A for topic: {topic_title}")
         
-        prompt = f"""You are a content simplifier for children. Given a topic and questions from a YouTube video, rephrase the topic title and questions to be clearer, and provide simple ELI5 (Explain Like I'm 5) answers.
-
-TOPIC: {topic_title}
-
-QUESTIONS:
-{chr(10).join([f"- {q}" for q in questions])}
-
-TRANSCRIPT EXCERPT:
-{transcript}
-
-For topic title and questions:
-1. Keep them catchy and interesting, but short
-
-For your answers:
-1. Format them using HTML with <b> and <i> tags for highlighting. 
-2. Prefer lists with <ol> and <li> tags. Ideally, <li> followed by <b> for the key points.
-3. Quote important keywords but explain them in easy-to-understand language (e.g., "<b>Quantum computing</b> is like having a super-fast magical calculator")
-4. Keep answers interesting but short
-
-Format your response in YAML:
-
-```yaml
-rephrased_title: |
-    Interesting topic title in 10 words
-questions:
-  - original: |
-        {questions[0] if len(questions) > 0 else ''}
-    rephrased: |
-        Interesting question in 15 words
-    answer: |
-        Simple answer that a 5-year-old could understand in 100 words
-  - original: |
-        {questions[1] if len(questions) > 1 else ''}
-    ...
-```
-        """
+        # API 키 확인
+        use_mock = not os.getenv("OPENAI_API_KEY")
         
-        response = call_llm(prompt)
+        qa_pairs = generate_qa_pairs(
+            topic_title=topic_title,
+            topic_content=topic_content,
+            num_questions=3,
+            use_mock=use_mock
+        )
         
-        # Extract YAML content
-        yaml_content = response.split("```yaml")[1].split("```")[0].strip() if "```yaml" in response else response
-        
-        parsed = yaml.safe_load(yaml_content)
-        rephrased_title = parsed.get("rephrased_title", topic_title)
-        processed_questions = parsed.get("questions", [])
-        
-        result = {
+        return {
             "title": topic_title,
-            "rephrased_title": rephrased_title,
-            "questions": processed_questions
+            "content": topic_content,
+            "qa_pairs": qa_pairs
         }
-        
-        return result
-
     
     def post(self, shared, prep_res, exec_res_list):
-        """Update topics with processed content in shared"""
-        topics = shared.get("topics", [])
+        """Store topics with Q&A pairs in shared"""
+        shared["topics_with_qa"] = exec_res_list
         
-        # Map of original topic title to processed content
-        title_to_processed = {
-            result["title"]: result
-            for result in exec_res_list
+        total_questions = sum(len(topic["qa_pairs"]) for topic in exec_res_list)
+        logger.info(f"Generated {total_questions} Q&A pairs across {len(exec_res_list)} topics")
+        return "default"
+
+class ConvertToKidFriendly(BatchNode):
+    """Convert content to kid-friendly explanations"""
+    def prep(self, shared):
+        """Return list of topics with Q&A pairs for batch processing"""
+        topics_with_qa = shared.get("topics_with_qa", [])
+        
+        # Flatten Q&A pairs for individual processing
+        items = []
+        for topic in topics_with_qa:
+            for qa_pair in topic["qa_pairs"]:
+                items.append({
+                    "topic_title": topic["title"],
+                    "question": qa_pair["question"],
+                    "answer": qa_pair["answer"]
+                })
+        
+        return items
+    
+    def exec(self, item):
+        """Convert a single Q&A pair to kid-friendly version"""
+        topic_title = item["topic_title"]
+        question = item["question"]
+        answer = item["answer"]
+        
+        logger.info(f"Converting to kid-friendly: {question[:50]}...")
+        
+        # API 키 확인
+        use_mock = not os.getenv("OPENAI_API_KEY")
+        
+        # Convert question to kid-friendly
+        kid_friendly_question = convert_to_kid_friendly(
+            text=question,
+            target_age=5,
+            use_mock=use_mock
+        )
+        
+        # Convert answer to kid-friendly
+        kid_friendly_answer = convert_to_kid_friendly(
+            text=answer,
+            target_age=5,
+            use_mock=use_mock
+        )
+        
+        return {
+            "topic_title": topic_title,
+            "original_question": question,
+            "original_answer": answer,
+            "kid_friendly_question": kid_friendly_question,
+            "kid_friendly_answer": kid_friendly_answer
         }
-        
-        # Update the topics with processed content
-        for topic in topics:
-            topic_title = topic["title"]
-            if topic_title in title_to_processed:
-                processed = title_to_processed[topic_title]
-                
-                # Update topic with rephrased title
-                topic["rephrased_title"] = processed["rephrased_title"]
-                
-                # Map of original question to processed question
-                orig_to_processed = {
-                    q["original"]: q
-                    for q in processed["questions"]
+    
+    def post(self, shared, prep_res, exec_res_list):
+        """Reorganize kid-friendly content by topic"""
+        # Group by topic
+        topics_dict = {}
+        for item in exec_res_list:
+            topic_title = item["topic_title"]
+            if topic_title not in topics_dict:
+                topics_dict[topic_title] = {
+                    "title": topic_title,
+                    "qa_pairs": []
                 }
-                
-                # Update each question
-                for q in topic["questions"]:
-                    original = q["original"]
-                    if original in orig_to_processed:
-                        processed_q = orig_to_processed[original]
-                        q["rephrased"] = processed_q.get("rephrased", original)
-                        q["answer"] = processed_q.get("answer", "")
+            
+            topics_dict[topic_title]["qa_pairs"].append({
+                "original_question": item["original_question"],
+                "original_answer": item["original_answer"],
+                "kid_friendly_question": item["kid_friendly_question"],
+                "kid_friendly_answer": item["kid_friendly_answer"]
+            })
         
-        # Update shared with modified topics
-        shared["topics"] = topics
+        # Convert back to list
+        final_topics = list(topics_dict.values())
+        shared["final_topics"] = final_topics
         
-        logger.info(f"Processed content for {len(exec_res_list)} topics")
+        logger.info(f"Converted {len(exec_res_list)} Q&A pairs to kid-friendly format")
         return "default"
 
 class GenerateHTML(Node):
     """Generate HTML output from processed content"""
     def prep(self, shared):
-        """Get video info and topics from shared"""
+        """Get video info and final topics from shared"""
         video_info = shared.get("video_info", {})
-        topics = shared.get("topics", [])
+        final_topics = shared.get("final_topics", [])
         
         return {
             "video_info": video_info,
-            "topics": topics
+            "final_topics": final_topics
         }
     
     def exec(self, data):
         """Generate HTML using html_generator"""
         video_info = data["video_info"]
-        topics = data["topics"]
+        final_topics = data["final_topics"]
         
         title = video_info.get("title", "YouTube Video Summary")
         thumbnail_url = video_info.get("thumbnail_url", "")
         
-        # Prepare sections for HTML
+        logger.info("Generating HTML output...")
+        
+        # Prepare sections for HTML generator
         sections = []
-        for topic in topics:
-            # Skip topics without questions
-            if not topic.get("questions"):
-                continue
-                
-            # Use rephrased_title if available, otherwise use original title
-            section_title = topic.get("rephrased_title", topic.get("title", ""))
+        for topic in final_topics:
+            topic_title = topic["title"]
+            qa_pairs = topic["qa_pairs"]
             
-            # Prepare bullets for this section
+            # Skip topics without Q&A pairs
+            if not qa_pairs:
+                continue
+            
+            # Prepare bullets (question-answer pairs)
             bullets = []
-            for question in topic.get("questions", []):
-                # Use rephrased question if available, otherwise use original
-                q = question.get("rephrased", question.get("original", ""))
-                a = question.get("answer", "")
+            for qa in qa_pairs:
+                question = qa["kid_friendly_question"]
+                answer = qa["kid_friendly_answer"]
                 
-                # Only add bullets if both question and answer have content
-                if q.strip() and a.strip():
-                    bullets.append((q, a))
+                # Only add if both question and answer have content
+                if question.strip() and answer.strip():
+                    bullets.append((f"Q: {question}", f"A: {answer}"))
             
             # Only include section if it has bullets
             if bullets:
                 sections.append({
-                    "title": section_title,
+                    "title": topic_title,
                     "bullets": bullets
                 })
         
@@ -298,29 +259,42 @@ class GenerateHTML(Node):
         return html_content
     
     def post(self, shared, prep_res, exec_res):
-        """Store HTML output in shared"""
+        """Store HTML output and save to file"""
         shared["html_output"] = exec_res
         
         # Write HTML to file
-        with open("output.html", "w") as f:
+        output_file = "output.html"
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write(exec_res)
         
-        logger.info("Generated HTML output and saved to output.html")
+        logger.info(f"Generated HTML output and saved to {output_file}")
         return "default"
 
-# Create the flow
 def create_youtube_processor_flow():
     """Create and connect the nodes for the YouTube processor flow"""
-    # Create nodes
-    process_url = ProcessYouTubeURL(max_retries=2, wait=10)
-    extract_topics_and_questions = ExtractTopicsAndQuestions(max_retries=2, wait=10)
-    process_content = ProcessContent(max_retries=2, wait=10)
-    generate_html = GenerateHTML(max_retries=2, wait=10)
+    # Create nodes with retry configuration
+    process_url = ProcessYouTubeURL(max_retries=2, wait=5)
+    extract_topics = ExtractTopics(max_retries=3, wait=2)
+    generate_qa = GenerateQA(max_retries=3, wait=2)
+    convert_kid_friendly = ConvertToKidFriendly(max_retries=3, wait=2)
+    generate_html = GenerateHTML(max_retries=2, wait=1)
     
-    # Connect nodes
-    process_url >> extract_topics_and_questions >> process_content >> generate_html
+    # Connect nodes in sequence
+    process_url >> extract_topics >> generate_qa >> convert_kid_friendly >> generate_html
     
     # Create flow
     flow = Flow(start=process_url)
     
+    logger.info("YouTube processor flow created successfully")
     return flow
+
+if __name__ == "__main__":
+    # Test flow creation
+    flow = create_youtube_processor_flow()
+    print("Flow created successfully!")
+    
+    # Check API key status
+    if os.getenv("OPENAI_API_KEY"):
+        print("✅ OPENAI_API_KEY is set - will use real OpenAI API")
+    else:
+        print("⚠️  OPENAI_API_KEY not set - will use Mock mode for testing")
