@@ -16,18 +16,82 @@ st.set_page_config(
 # 사이드바에 설정
 st.sidebar.title("⚙️ 설정")
 
-# API 키 설정
-api_key = st.sidebar.text_input(
-    "🔑 OpenAI API Key", 
-    type="password",
-    help="OpenAI API 키를 입력하세요. 없으면 Mock 모드로 동작합니다."
-)
+# Session State 초기화
+if "api_key" not in st.session_state:
+    st.session_state.api_key = ""
 
-if api_key:
-    os.environ["OPENAI_API_KEY"] = api_key
-    st.sidebar.success("✅ API 키가 설정되었습니다!")
+# API 키 자동 로드 (환경 변수에서)
+env_api_key = os.getenv("OPENAI_API_KEY", "")
+
+# API 키 설정
+st.sidebar.markdown("### 🔑 API 키 설정")
+
+# 환경 변수에서 API 키가 있으면 표시
+if env_api_key:
+    st.sidebar.success("✅ API 키가 환경 변수에서 자동 로드되었습니다!")
+    os.environ["OPENAI_API_KEY"] = env_api_key
+    
+    # 환경 변수 키의 일부만 표시 (보안)
+    if len(env_api_key) > 16:
+        masked_key = env_api_key[:12] + "..." + env_api_key[-4:]
+    else:
+        masked_key = env_api_key[:4] + "..." + env_api_key[-2:]
+    st.sidebar.code(f"🔐 {masked_key}")
+    
 else:
-    st.sidebar.warning("⚠️ Mock 모드로 동작합니다")
+    # API 키 입력
+    api_key_input = st.sidebar.text_input(
+        "OpenAI API Key",
+        value=st.session_state.api_key,
+        type="password",
+        help="OpenAI API 키를 입력하세요. 세션 동안 자동으로 기억됩니다.",
+        placeholder="sk-proj-..."
+    )
+    
+    # API 키 상태 업데이트
+    if api_key_input:
+        st.session_state.api_key = api_key_input
+        os.environ["OPENAI_API_KEY"] = api_key_input
+        st.sidebar.success("✅ API 키가 설정되었습니다! (세션 동안 유지)")
+        
+        # 키의 일부만 표시 (보안)
+        if len(api_key_input) > 16:
+            masked_key = api_key_input[:12] + "..." + api_key_input[-4:]
+        else:
+            masked_key = api_key_input[:4] + "..." + api_key_input[-2:]
+        st.sidebar.code(f"🔐 {masked_key}")
+        
+    else:
+        st.sidebar.warning("⚠️ Mock 모드로 동작합니다")
+        st.sidebar.info("💡 실제 요약을 위해서는 OpenAI API 키가 필요합니다")
+
+# API 키 지우기 버튼
+if st.session_state.api_key or env_api_key:
+    if st.sidebar.button("🗑️ API 키 지우기"):
+        st.session_state.api_key = ""
+        if "OPENAI_API_KEY" in os.environ and not env_api_key:
+            del os.environ["OPENAI_API_KEY"]
+        st.rerun()
+
+# API 키 사용법 도움말
+with st.sidebar.expander("❓ API 키 사용법"):
+    st.markdown("""
+    ### 🔑 API 키 얻는 방법
+    1. [OpenAI 웹사이트](https://platform.openai.com) 방문
+    2. 계정 생성 또는 로그인
+    3. "API Keys" 메뉴에서 새 키 생성
+    4. 여기에 붙여넣기
+    
+    ### 💡 팁
+    - **세션 유지**: 탭을 닫지 않으면 계속 기억됩니다
+    - **환경 변수**: `.env` 파일에 저장하면 자동 로드
+    - **Mock 모드**: API 키 없이도 테스트 가능
+    
+    ### 🔒 보안
+    - API 키는 메모리에만 저장됩니다
+    - 브라우저 종료 시 자동 삭제
+    - 서버에 전송되지 않음
+    """)
 
 # 노션 연동 설정 (나중에 추가)
 st.sidebar.markdown("---")
@@ -52,29 +116,39 @@ col1, col2 = st.columns([3, 1])
 
 with col1:
     youtube_url = st.text_input(
-        "",
+        "YouTube URL",
+        value=st.session_state.selected_url,
         placeholder="https://youtu.be/... 또는 https://www.youtube.com/watch?v=...",
-        help="YouTube 비디오 URL을 입력하세요"
+        help="YouTube 비디오 URL을 입력하세요",
+        label_visibility="collapsed"
     )
 
 with col2:
     st.markdown("<br>", unsafe_allow_html=True)  # 높이 맞추기
     process_button = st.button("🚀 요약하기", type="primary", use_container_width=True)
 
+# Session state for URL
+if "selected_url" not in st.session_state:
+    st.session_state.selected_url = ""
+
 # 예시 URLs
 st.markdown("**📋 예시 URLs (클릭해서 테스트):**")
 example_urls = [
-    "https://youtu.be/FI8ozR1NLbA?si=EBTyq171a-vdTQB5",  # 한국어 예시
-    "https://youtu.be/dQw4w9WgXcQ",  # 영어 예시 (Rick Roll)
-    "https://youtu.be/aircAruvnKk"   # 교육 영상 예시
+    ("한국어 비디오", "https://youtu.be/FI8ozR1NLbA?si=EBTyq171a-vdTQB5"),
+    ("Rick Roll 🎵", "https://youtu.be/dQw4w9WgXcQ"),
+    ("교육 영상", "https://youtu.be/aircAruvnKk")
 ]
 
 cols = st.columns(len(example_urls))
-for i, url in enumerate(example_urls):
+for i, (title, url) in enumerate(example_urls):
     with cols[i]:
-        if st.button(f"예시 {i+1}", key=f"example_{i}"):
-            youtube_url = url
+        if st.button(f"{title}", key=f"example_{i}"):
+            st.session_state.selected_url = url
             st.rerun()
+
+# URL이 변경되면 session state 업데이트
+if youtube_url != st.session_state.selected_url:
+    st.session_state.selected_url = youtube_url
 
 # 요약 처리
 if process_button and youtube_url:
